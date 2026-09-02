@@ -243,7 +243,7 @@ npm run dev
   <tr>
     <td align="center" width="50%">
       <a href="https://github.com/RahulBansal-24">
-        <img src="https://github.com/RahulBansal-24.png" width="120px;" style="border-radius: 50%;" alt="Rahul Bansal"/><br />
+        <img src="https://github.com/RahulBansal-24.png" width="100px" alt="Rahul Bansal"/><br />
         <sub><b>👨‍💻 Rahul Bansal</b></sub>
       </a><br />
       <p>🚀 Full-Stack Developer | 🤖 AI Developer</p>
@@ -253,10 +253,10 @@ npm run dev
     </td>
     <td align="center" width="50%">
       <a href="https://github.com/mahi040-pixel">
-        <img src="https://github.com/mahi040-pixel.png" width="120px;" style="border-radius: 50%;" alt="Mahi Varshney"/><br />
+        <img src="https://github.com/mahi040-pixel.png" width="100px" alt="Mahi Varshney"/><br />
         <sub><b>👩‍💻 Mahi Varshney</b></sub>
       </a><br />
-      <p>🌐 Web Developer | 🧠 Applied AI Specialist</p>
+      <p>🌐 Web Developer | 🧠 AI Engineer</p>
       <a href="mailto:mahivarshney08@gmail.com">📧 Email</a> • 
       <a href="https://github.com/mahi040-pixel">🔗 GitHub</a> • 
       <a href="https://www.linkedin.com/in/mahi-varshney-ba76ab378/">💼 LinkedIn</a>
