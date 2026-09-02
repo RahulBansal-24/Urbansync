@@ -256,7 +256,7 @@ npm run dev
         <img src="https://github.com/mahi040-pixel.png" width="120px;" style="border-radius: 50%;" alt="Mahi Varshney"/><br />
         <sub><b>👩‍💻 Mahi Varshney</b></sub>
       </a><br />
-      <p>🚀 Full-Stack Developer | 🤖 AI Developer</p>
+      <p>🌐 Web Developer | 🧠 Applied AI Specialist</p>
       <a href="mailto:mahivarshney08@gmail.com">📧 Email</a> • 
       <a href="https://github.com/mahi040-pixel">🔗 GitHub</a> • 
       <a href="https://www.linkedin.com/in/mahi-varshney-ba76ab378/">💼 LinkedIn</a>
