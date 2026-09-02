@@ -98,7 +98,11 @@ export const connectWebSocket = (onMessage: (data: any) => void): WebSocket | nu
         console.error('Error parsing WebSocket message:', err);
       }
     };
-    ws.onerror = (err) => console.warn('WebSocket connection notice:', err);
+    ws.onerror = (err) => {
+      // Suppress unhandled console noise during React StrictMode cleanup
+      if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) return;
+      console.warn('WebSocket connection notice:', err);
+    };
     return ws;
   } catch (err) {
     console.warn('Could not connect WebSocket:', err);

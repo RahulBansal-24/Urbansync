@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import {
   LayerCategory,
   GeoJsonFeatureCollection,
@@ -10,7 +11,15 @@ import {
   SimulationResult
 } from '../../types/city';
 
-const TOMTOM_TOKEN = process.env.NEXT_PUBLIC_TOMTOM_API_KEY || 'placeholder_tomtom_api_key_here';
+const TOMTOM_TOKEN = process.env.NEXT_PUBLIC_TOMTOM_API_KEY || '';
+
+export interface CityMapRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+  locateMe: () => void;
+  togglePitch: () => void;
+}
 
 interface CityMapProps {
   activeCategory: LayerCategory;
@@ -26,7 +35,7 @@ interface CityMapProps {
   onClickFeature: (feature: GeoJsonFeature) => void;
 }
 
-export const CityMap: React.FC<CityMapProps> = ({
+export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
   activeCategory,
   events,
   trafficIncidents,
@@ -38,28 +47,62 @@ export const CityMap: React.FC<CityMapProps> = ({
   simulationResult,
   onHoverFeature,
   onClickFeature
-}) => {
+}, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [is3DPitched, setIs3DPitched] = useState(true);
 
-  // Initialize MapLibre GL JS map with TomTom dark vector style
+  // Expose control methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => map.current?.zoomIn(),
+    zoomOut: () => map.current?.zoomOut(),
+    resetView: () => {
+      map.current?.flyTo({
+        center: [77.2090, 28.6139],
+        zoom: 11.5,
+        pitch: 45,
+        bearing: -15,
+        essential: true
+      });
+    },
+    locateMe: () => {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          map.current?.flyTo({
+            center: [pos.coords.longitude, pos.coords.latitude],
+            zoom: 14,
+            essential: true
+          });
+        });
+      }
+    },
+    togglePitch: () => {
+      const nextPitch = is3DPitched ? 0 : 45;
+      setIs3DPitched(!is3DPitched);
+      map.current?.easeTo({ pitch: nextPitch, duration: 600 });
+    }
+  }));
+
+  // Initialize MapLibre GL JS map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    // TomTom Orbis vector map style URL or standalone dark vector spec
     const hasValidKey = TOMTOM_TOKEN && !TOMTOM_TOKEN.includes('placeholder');
-    const styleUrl = hasValidKey
-      ? `https://api.tomtom.com/style/1/style/22.2.1-*?map=basic_street-dark&key=${TOMTOM_TOKEN}`
-      : {
+    
+    // Construct TomTom Night Raster Basemap with automatic fallback to CartoDB Dark Matter
+    const styleObject: any = hasValidKey
+      ? {
           version: 8,
           sources: {
-            'osm-tiles': {
+            'tomtom-basemap-source': {
               type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tiles: [
+                `https://api.tomtom.com/map/1/tile/basic/night/{z}/{x}/{y}.png?key=${TOMTOM_TOKEN}`
+              ],
               tileSize: 256,
-              attribution: '© OpenStreetMap contributors | TomTom Orbis Fallback'
+              maxzoom: 22
             }
           },
           layers: [
@@ -69,57 +112,72 @@ export const CityMap: React.FC<CityMapProps> = ({
               paint: { 'background-color': '#080B10' }
             },
             {
-              id: 'osm-tiles-layer',
+              id: 'tomtom-basemap-layer',
               type: 'raster',
-              source: 'osm-tiles',
-              paint: {
-                'raster-brightness-max': 0.35,
-                'raster-contrast': 0.4,
-                'raster-saturation': -0.8
-              }
+              source: 'tomtom-basemap-source',
+              minzoom: 0,
+              maxzoom: 22
             }
           ]
-        };
-
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: styleUrl as any,
-      center: [77.2090, 28.6139], // Delhi Center
-      zoom: 11.5,
-      pitch: 45, // 2.5D perspective camera view
-      bearing: -15,
-      antialias: true
-    });
-
-    map.current.on('load', () => {
-      setMapLoaded(true);
-
-      // Add 2.5D building extrusion layer if building data source exists
-      if (map.current) {
-        try {
-          map.current.addLayer({
-            id: '3d-buildings',
-            source: 'composite',
-            'source-layer': 'building',
-            filter: ['==', 'extrude', 'true'],
-            type: 'fill-extrusion',
-            minzoom: 12,
-            paint: {
-              'fill-extrusion-color': '#161C28',
-              'fill-extrusion-height': ['get', 'height'],
-              'fill-extrusion-base': ['get', 'min_height'],
-              'fill-extrusion-opacity': 0.6
-            }
-          });
-        } catch (e) {
-          // Extrusion fallback for raster basemap
         }
-      }
-    });
+      : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
-    return () => {
-      map.current?.remove();
-    };
+    console.log(`[UrbanSync Map] Initializing MapLibre GL JS with ${hasValidKey ? 'TomTom Night Map API' : 'CartoDB Dark Vector Basemap'}`);
+
+    try {
+      const mapInstance = new maplibregl.Map({
+        container: mapContainer.current,
+        style: styleObject,
+        center: [77.2090, 28.6139], // Delhi Center [Longitude, Latitude]
+        zoom: 11.5,
+        pitch: 45,
+        bearing: -15,
+        antialias: true
+      });
+
+      map.current = mapInstance;
+
+      // Attach ResizeObserver to dynamically resize WebGL canvas whenever container bounds change
+      const resizeObserver = new ResizeObserver(() => {
+        if (map.current) {
+          map.current.resize();
+        }
+      });
+      if (mapContainer.current) {
+        resizeObserver.observe(mapContainer.current);
+      }
+
+      mapInstance.on('style.load', () => {
+        console.log('[UrbanSync Map] Map style loaded successfully!');
+      });
+
+      mapInstance.on('error', (e) => {
+        console.warn('[UrbanSync Map Event Notice]:', e.error?.message || e);
+        // Fallback to CartoDB vector basemap if primary style tiles fail
+        if (hasValidKey && e.error?.message?.includes('401') && map.current) {
+          console.warn('[UrbanSync Map Fallback] Switching to CartoDB dark vector basemap...');
+          map.current.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');
+        }
+      });
+
+      mapInstance.on('load', () => {
+        console.log('[UrbanSync Map] Map rendering active and fully loaded!');
+        setMapLoaded(true);
+        mapInstance.resize();
+      });
+
+      // Force initial container resize
+      requestAnimationFrame(() => mapInstance.resize());
+      setTimeout(() => mapInstance.resize(), 200);
+
+      return () => {
+        resizeObserver.disconnect();
+        mapInstance.remove();
+        map.current = null;
+      };
+    } catch (err) {
+      console.error('[UrbanSync Map Fatal Error]:', err);
+    }
   }, []);
 
   // Update Weather Polygons Overlay
@@ -257,6 +315,8 @@ export const CityMap: React.FC<CityMapProps> = ({
       allFeatures.push(...transitStops.features);
     }
 
+    console.log(`[UrbanSync Map] Rendering ${allFeatures.length} markers for category: ${activeCategory}`);
+
     allFeatures.forEach((feat) => {
       const { type } = feat.properties;
       const coords = feat.geometry.coordinates;
@@ -291,7 +351,6 @@ export const CityMap: React.FC<CityMapProps> = ({
         </div>
       `;
 
-      // Hover preview & Click locking listeners
       el.addEventListener('mouseenter', () => onHoverFeature(feat));
       el.addEventListener('mouseleave', () => onHoverFeature(null));
       el.addEventListener('click', () => onClickFeature(feat));
@@ -311,5 +370,15 @@ export const CityMap: React.FC<CityMapProps> = ({
     mapLoaded
   ]);
 
-  return <div ref={mapContainer} className="absolute inset-0 w-full h-full bg-dark-bg" />;
-};
+  return (
+    <div className="absolute inset-0 w-full h-full min-h-screen overflow-hidden bg-dark-bg z-0">
+      <div 
+        ref={mapContainer} 
+        className="w-full h-full min-h-screen bg-dark-bg"
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' }}
+      />
+    </div>
+  );
+});
+
+CityMap.displayName = 'CityMap';

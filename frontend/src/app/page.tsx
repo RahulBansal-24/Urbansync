@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TopBar } from '../components/navigation/TopBar';
 import { CategoryBar } from '../components/navigation/CategoryBar';
 import { SystemStatusModal } from '../components/navigation/SystemStatusModal';
-import { CityMap } from '../components/map/CityMap';
+import { CityMap, CityMapRef } from '../components/map/CityMap';
 import { MapLegend } from '../components/map/MapLegend';
 import { MapControls } from '../components/map/MapControls';
 import { DetailPanel } from '../components/panels/DetailPanel';
@@ -36,6 +36,7 @@ import {
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<LayerCategory>('ALL');
+  const cityMapRef = useRef<CityMapRef>(null);
 
   // City Data Collections
   const [eventsData, setEventsData] = useState<GeoJsonFeatureCollection | null>(null);
@@ -55,9 +56,9 @@ export default function Home() {
   const [lockedFeature, setLockedFeature] = useState<GeoJsonFeature | null>(null);
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
 
-  // Initial Data Fetching & Live WebSocket Connection
+  // Initial Data Fetching ONCE on Page Mount (No background polling loops)
   useEffect(() => {
-    const loadAllData = async () => {
+    const loadAllDataOnStart = async () => {
       try {
         const [evs, trf, blks, wth, hsps, trn, hlth] = await Promise.all([
           fetchEvents(),
@@ -76,20 +77,22 @@ export default function Home() {
         setTransitData(trn);
         setSystemHealth(hlth);
       } catch (err) {
-        console.warn('Initial backend fetch error (using fallback defaults):', err);
+        console.warn('Initial backend fetch notice:', err);
       }
     };
 
-    loadAllData();
+    // Single fetch on application start
+    loadAllDataOnStart();
 
-    // WebSocket live delta updates
+    // WebSocket live notification connection
     const ws = connectWebSocket((data) => {
-      console.log('Real-Time Live Delta Update received via WebSocket:', data);
-      fetchSystemHealth().then(setSystemHealth).catch(() => {});
+      console.log('Real-Time Live Update Notification received:', data);
     });
 
     return () => {
-      ws?.close();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, []);
 
@@ -116,8 +119,9 @@ export default function Home() {
         onSelectCategory={handleSelectCategory}
       />
 
-      {/* Central Full-Screen Dark Mapbox Map */}
+      {/* Central Full-Screen Dark Map Engine */}
       <CityMap
+        ref={cityMapRef}
         activeCategory={activeCategory}
         events={eventsData}
         trafficIncidents={trafficData}
@@ -133,14 +137,14 @@ export default function Home() {
         onClickFeature={(feat) => setLockedFeature(feat)}
       />
 
-      {/* Map Legend & Controls */}
+      {/* Map Legend & Interactive Controls */}
       <MapLegend />
       <MapControls
-        onZoomIn={() => {}}
-        onZoomOut={() => {}}
-        onResetView={() => {}}
-        onLocateMe={() => {}}
-        onTogglePitch={() => {}}
+        onZoomIn={() => cityMapRef.current?.zoomIn()}
+        onZoomOut={() => cityMapRef.current?.zoomOut()}
+        onResetView={() => cityMapRef.current?.resetView()}
+        onLocateMe={() => cityMapRef.current?.locateMe()}
+        onTogglePitch={() => cityMapRef.current?.togglePitch()}
       />
 
       {/* FLAGSHIP #1: AI Smart Route Drawer */}

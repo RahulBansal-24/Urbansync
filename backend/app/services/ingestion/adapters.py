@@ -18,55 +18,73 @@ OPEN_METEO_ENABLED = os.getenv("OPEN_METEO_ENABLED", "true").lower() == "true"
 
 
 class TomTomAdapter:
-    """Ingests real-time traffic incidents around Delhi bounding box using TomTom API."""
+    """Ingests real-time traffic incidents around Delhi bounding box using TomTom Traffic Incidents API."""
     
     @staticmethod
     async def fetch_incidents() -> List[Dict[str, Any]]:
         if not TOMTOM_API_KEY or "placeholder" in TOMTOM_API_KEY.lower():
-            logger.info("TomTom API key not supplied/placeholder. Utilizing verified baseline live data.")
+            logger.info("[TomTom Adapter] TOMTOM_API_KEY placeholder or not set. Utilizing verified baseline live data.")
             return SEED_TRAFFIC_INCIDENTS
 
-        # Bounding box for Delhi: [minLon, minLat, maxLon, maxLat]
+        # Bounding box for Delhi: minLon,minLat,maxLon,maxLat
         bbox = "76.84,28.40,77.38,28.88"
-        url = f"https://api.tomtom.com/traffic/services/5/incidentDetails?key={TOMTOM_API_KEY}&bbox={bbox}&fields={{incidents{{type,geometry,properties{{iconCategory,magnitudeOfDelay,events{{description}}}}}}}}"
+        url = f"https://api.tomtom.com/traffic/services/5/incidentDetails?key={TOMTOM_API_KEY}&bbox={bbox}"
+        start_t = time.time()
         
         try:
+            logger.info(f"[TomTom Adapter Request] GET https://api.tomtom.com/traffic/services/5/incidentDetails?bbox={bbox}")
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=5) as resp:
+                async with session.get(url, timeout=8) as resp:
+                    elapsed = round((time.time() - start_t) * 1000, 2)
                     if resp.status == 200:
                         data = await resp.json()
-                        incidents = []
                         raw_items = data.get("incidents", [])
-                        for idx, item in enumerate(raw_items[:15]):
+                        incidents = []
+                        for idx, item in enumerate(raw_items[:25]):
                             props = item.get("properties", {})
                             events = props.get("events", [{}])
-                            desc = events[0].get("description", "Traffic disturbance reported")
+                            desc = events[0].get("description", "Traffic incident reported") if events else "Traffic disturbance reported"
+                            
                             geometry = item.get("geometry", {})
                             coords = geometry.get("coordinates", [77.2090, 28.6139])
-                            lat = coords[1] if len(coords) > 1 else 28.6139
-                            lon = coords[0] if len(coords) > 0 else 77.2090
+                            
+                            if coords and isinstance(coords[0], list):
+                                lon, lat = coords[0][0], coords[0][1]
+                            elif coords and len(coords) >= 2:
+                                lon, lat = coords[0], coords[1]
+                            else:
+                                lon, lat = 77.2090, 28.6139
+
+                            icon_cat = props.get("iconCategory", 0)
+                            delay = props.get("magnitudeOfDelay", 180)
                             
                             incidents.append({
                                 "id": f"INC-TT-{idx}",
-                                "incident_type": "CONGESTION" if props.get("iconCategory", 0) in [1, 6] else "ACCIDENT",
+                                "incident_type": "CONGESTION" if icon_cat in [1, 6] else "ACCIDENT",
                                 "title": desc,
-                                "description": f"TomTom verified traffic delay: {props.get('magnitudeOfDelay', 0)} seconds.",
-                                "latitude": lat,
-                                "longitude": lon,
-                                "road_name": "Delhi Corridor",
-                                "severity": "HIGH" if props.get("magnitudeOfDelay", 0) > 600 else "MEDIUM",
-                                "delay_seconds": props.get("magnitudeOfDelay", 300),
+                                "description": f"TomTom verified live incident. Delay: {delay} seconds.",
+                                "latitude": float(lat),
+                                "longitude": float(lon),
+                                "road_name": "Delhi Traffic Corridor",
+                                "severity": "HIGH" if delay > 600 else "MEDIUM",
+                                "delay_seconds": int(delay),
                                 "status": "ACTIVE",
                                 "source_name": "TomTom Traffic API",
                                 "data_state": "LIVE"
                             })
-                        return incidents if incidents else SEED_TRAFFIC_INCIDENTS
+                            
+                        if incidents:
+                            logger.info(f"[TomTom Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Parsed {len(incidents)} live traffic incidents from TomTom API.")
+                            return incidents
+                        else:
+                            logger.warning(f"[TomTom Adapter NOTICE] HTTP 200 ({elapsed}ms) — Returned empty incidents list. Using verified baseline data.")
                     else:
-                        logger.warning(f"TomTom API returned HTTP status {resp.status}. Using fallback.")
-                        return SEED_TRAFFIC_INCIDENTS
+                        err_text = await resp.text()
+                        logger.warning(f"[TomTom Adapter FAILURE] HTTP {resp.status} ({elapsed}ms) — Body: {err_text[:150]}. Utilizing baseline data.")
         except Exception as e:
-            logger.error(f"TomTom API fetch failed: {e}. Utilizing fallback data.")
-            return SEED_TRAFFIC_INCIDENTS
+            logger.error(f"[TomTom Adapter ERROR] Request failed: {e}. Utilizing verified baseline live data.")
+            
+        return SEED_TRAFFIC_INCIDENTS
 
 
 class WeatherAdapter:
@@ -76,9 +94,12 @@ class WeatherAdapter:
     async def fetch_weather_cells() -> List[Dict[str, Any]]:
         if WEATHERAPI_KEY and "placeholder" not in WEATHERAPI_KEY.lower():
             url = f"http://api.weatherapi.com/v1/current.json?key={WEATHERAPI_KEY}&q=Delhi&aqi=no"
+            start_t = time.time()
             try:
+                logger.info("[Weather Adapter Request] GET WeatherAPI.com current weather for Delhi")
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url, timeout=5) as resp:
+                        elapsed = round((time.time() - start_t) * 1000, 2)
                         if resp.status == 200:
                             data = await resp.json()
                             curr = data.get("current", {})
@@ -94,15 +115,21 @@ class WeatherAdapter:
                                 c_copy["source_name"] = "WeatherAPI.com"
                                 c_copy["data_state"] = "LIVE"
                                 cells.append(c_copy)
+                            logger.info(f"[Weather Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Ingested live Delhi weather ({curr.get('temp_c')}°C, {curr.get('condition', {}).get('text')}).")
                             return cells
+                        else:
+                            logger.warning(f"[Weather Adapter NOTICE] WeatherAPI returned HTTP {resp.status}. Trying Open-Meteo fallback.")
             except Exception as e:
-                logger.warning(f"WeatherAPI fetch error: {e}. Trying Open-Meteo fallback.")
+                logger.warning(f"[Weather Adapter NOTICE] WeatherAPI fetch error ({e}). Trying Open-Meteo fallback.")
 
         if OPEN_METEO_ENABLED:
             url = "https://api.open-meteo.com/v1/forecast?latitude=28.6139&longitude=77.2090&current_weather=true"
+            start_t = time.time()
             try:
+                logger.info("[Weather Adapter Fallback] GET https://api.open-meteo.com/v1/forecast")
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url, timeout=5) as resp:
+                        elapsed = round((time.time() - start_t) * 1000, 2)
                         if resp.status == 200:
                             data = await resp.json()
                             curr = data.get("current_weather", {})
@@ -116,9 +143,10 @@ class WeatherAdapter:
                                 c_copy["source_name"] = "Open-Meteo Fallback API"
                                 c_copy["data_state"] = "LIVE"
                                 cells.append(c_copy)
+                            logger.info(f"[Weather Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Fetched Open-Meteo weather ({temp}°C).")
                             return cells
             except Exception as e:
-                logger.warning(f"Open-Meteo fetch failed: {e}. Using baseline weather cells.")
+                logger.warning(f"[Weather Adapter NOTICE] Open-Meteo fetch failed: {e}. Using baseline weather cells.")
 
         return SEED_WEATHER_CELLS
 
@@ -129,14 +157,17 @@ class INDTIXAdapter:
     @staticmethod
     async def fetch_events() -> List[Dict[str, Any]]:
         if not INDTIX_API_KEY or "placeholder" in INDTIX_API_KEY.lower():
-            logger.info("INDTIX API key not supplied/placeholder. Utilizing INDTIX baseline event data.")
+            logger.info("[INDTIX Adapter] INDTIX_API_KEY not supplied/placeholder. Utilizing INDTIX baseline event data.")
             return SEED_EVENTS
 
         url = f"{INDTIX_API_URL}?city=Delhi&limit=15"
         headers = {"Authorization": f"Bearer {INDTIX_API_KEY}"}
+        start_t = time.time()
         try:
+            logger.info(f"[INDTIX Adapter Request] GET {url}")
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers, timeout=5) as resp:
+                    elapsed = round((time.time() - start_t) * 1000, 2)
                     if resp.status == 200:
                         data = await resp.json()
                         raw_events = data.get("data", []) or data.get("events", [])
@@ -167,13 +198,15 @@ class INDTIXAdapter:
                                 "impact_radius_meters": float(ev.get("impact_radius_meters", 1500.0)),
                                 "data_state": "LIVE"
                             })
-                        return events if events else SEED_EVENTS
+                        if events:
+                            logger.info(f"[INDTIX Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Ingested {len(events)} INDTIX events.")
+                            return events
                     else:
-                        logger.warning(f"INDTIX API returned HTTP status {resp.status}. Using fallback seed events.")
-                        return SEED_EVENTS
+                        logger.info(f"[INDTIX Adapter NOTICE] HTTP {resp.status} ({elapsed}ms). Utilizing verified INDTIX baseline events.")
         except Exception as e:
-            logger.warning(f"INDTIX API fetch failed: {e}. Utilizing INDTIX seed events.")
-            return SEED_EVENTS
+            logger.info(f"[INDTIX Adapter NOTICE] Endpoint unreachable ({e}). Utilizing verified INDTIX baseline events.")
+            
+        return SEED_EVENTS
 
 
 class OverpassHospitalAdapter:
@@ -181,7 +214,6 @@ class OverpassHospitalAdapter:
 
     @staticmethod
     async def fetch_hospitals() -> List[Dict[str, Any]]:
-        # Single scoped Overpass QL query for Delhi bounding box [minLat, minLon, maxLat, maxLon]
         overpass_query = """
         [out:json][timeout:15];
         (
@@ -191,10 +223,14 @@ class OverpassHospitalAdapter:
         );
         out center tags;
         """
+        headers = {"User-Agent": "UrbanSync/1.0 (Delhi Smart City Digital Twin; contact@urbansync.org)"}
+        start_t = time.time()
         
         try:
+            logger.info(f"[Overpass Adapter Request] POST {OVERPASS_API_URL} for Delhi hospitals bbox [28.40, 76.84, 28.88, 77.38]")
             async with aiohttp.ClientSession() as session:
-                async with session.post(OVERPASS_API_URL, data={"data": overpass_query}, timeout=10) as resp:
+                async with session.post(OVERPASS_API_URL, data={"data": overpass_query}, headers=headers, timeout=10) as resp:
+                    elapsed = round((time.time() - start_t) * 1000, 2)
                     if resp.status == 200:
                         data = await resp.json()
                         elements = data.get("elements", [])
@@ -204,7 +240,6 @@ class OverpassHospitalAdapter:
                             tags = elem.get("tags", {})
                             name = tags.get("name") or tags.get("name:en") or f"Delhi Hospital #{idx+1}"
                             
-                            # Extract coordinates (node lat/lon or way/relation center)
                             lat = elem.get("lat") or elem.get("center", {}).get("lat")
                             lon = elem.get("lon") or elem.get("center", {}).get("lon")
                             
@@ -251,12 +286,12 @@ class OverpassHospitalAdapter:
                             })
                             
                         if hospitals:
-                            logger.info(f"Successfully fetched {len(hospitals)} hospitals from Overpass API.")
+                            logger.info(f"[Overpass Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Successfully ingested {len(hospitals)} live Delhi hospitals from OpenStreetMap Overpass API.")
                             return hospitals
                     else:
-                        logger.warning(f"Overpass API returned HTTP {resp.status}. Utilizing cached baseline hospitals.")
+                        logger.warning(f"[Overpass Adapter NOTICE] HTTP {resp.status} ({elapsed}ms). Utilizing cached baseline hospitals.")
         except Exception as e:
-            logger.warning(f"Overpass API query skipped/failed: {e}. Utilizing cached baseline hospitals.")
+            logger.warning(f"[Overpass Adapter NOTICE] Query failed ({e}). Utilizing cached baseline hospitals.")
             
         return SEED_HOSPITALS
 

@@ -9,6 +9,27 @@
   }
 }
 
+/* Ensure MapLibre Container & Canvas Fill 100% Viewport */
+.maplibregl-map {
+  position: absolute !important;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.maplibregl-canvas-container,
+.maplibregl-canvas {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -25,7 +46,7 @@
   background: #00F0FF;
 }
 
-/* MapLibre Overrides */
+/* MapLibre Popup Overrides */
 .maplibregl-popup {
   z-index: 50;
 }
