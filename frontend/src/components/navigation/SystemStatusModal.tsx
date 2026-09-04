@@ -43,8 +43,10 @@ export const SystemStatusModal: React.FC<SystemStatusModalProps> = ({ isOpen, on
                   <span className="text-[11px] text-dark-muted font-mono">{svc.last_sync}</span>
                   <span className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
                     svc.status === 'LIVE' || svc.status === 'ONLINE'
-                      ? 'bg-status-live/20 text-status-live border border-status-live/40'
-                      : 'bg-status-warning/20 text-status-warning border border-status-warning/40'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      : svc.status.includes('FALLBACK') || svc.status.includes('STATIC')
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                      : 'bg-red-500/20 text-red-400 border border-red-500/40'
                   }`}>
                     ● {svc.status}
                   </span>

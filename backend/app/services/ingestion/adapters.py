@@ -65,11 +65,13 @@ OPEN_METEO_ENABLED = os.getenv("OPEN_METEO_ENABLED", "true").lower() == "true"
 
 class TomTomAdapter:
     """Ingests real-time traffic incidents around Delhi bounding box using TomTom Traffic Incidents API."""
+    last_data_state = "FALLBACK"
     
     @staticmethod
     async def fetch_incidents() -> List[Dict[str, Any]]:
         if not TOMTOM_API_KEY or "placeholder" in TOMTOM_API_KEY.lower():
             logger.info("[TomTom Adapter] TOMTOM_API_KEY placeholder or not set. Utilizing verified baseline live data.")
+            TomTomAdapter.last_data_state = "FALLBACK"
             return SEED_TRAFFIC_INCIDENTS
 
         # Bounding box for Delhi: minLon,minLat,maxLon,maxLat
@@ -173,20 +175,26 @@ class TomTomAdapter:
                             
                         if incidents:
                             logger.info(f"[TomTom Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Parsed {len(incidents)} live traffic incidents from TomTom API.")
+                            TomTomAdapter.last_data_state = "LIVE"
                             return incidents
                         else:
                             logger.warning(f"[TomTom Adapter NOTICE] HTTP 200 ({elapsed}ms) — Returned empty incidents list. Using verified baseline data.")
+                            TomTomAdapter.last_data_state = "FALLBACK"
                     else:
                         err_text = await resp.text()
                         logger.warning(f"[TomTom Adapter FAILURE] HTTP {resp.status} ({elapsed}ms) — Body: {err_text[:150]}. Utilizing baseline data.")
+                        TomTomAdapter.last_data_state = "FALLBACK"
         except Exception as e:
             logger.error(f"[TomTom Adapter ERROR] Request failed: {e}. Utilizing verified baseline live data.")
+            TomTomAdapter.last_data_state = "FALLBACK"
             
+        TomTomAdapter.last_data_state = "FALLBACK"
         return SEED_TRAFFIC_INCIDENTS
 
 
 class WeatherAdapter:
     """Ingests multi-grid live telemetry from Open-Meteo & WeatherAPI across Delhi NCR sub-regions."""
+    last_data_state = "FALLBACK"
     
     @staticmethod
     async def fetch_weather_cells() -> List[Dict[str, Any]]:
@@ -226,18 +234,23 @@ class WeatherAdapter:
                                 c_copy["data_state"] = "LIVE"
                             cells.append(c_copy)
                         logger.info(f"[Weather Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Parsed {len(cells)} distinct spatial weather cell telemetries.")
+                        WeatherAdapter.last_data_state = "LIVE"
                         return cells
                     else:
                         logger.warning(f"[Weather Adapter NOTICE] Open-Meteo returned HTTP {resp.status}. Using baseline grid cells.")
+                        WeatherAdapter.last_data_state = "FALLBACK"
         except Exception as e:
             logger.warning(f"[Weather Adapter NOTICE] Multi-grid fetch error ({e}). Using baseline grid cells.")
+            WeatherAdapter.last_data_state = "FALLBACK"
 
+        WeatherAdapter.last_data_state = "FALLBACK"
         return SEED_WEATHER_CELLS
 
 
 class EventbriteAdapter:
     """Ingests live public event data for Delhi NCR region from Eventbrite public listing pages."""
-    
+    last_data_state = "FALLBACK"
+
     EVENTBRITE_URLS = [
         "https://www.eventbrite.com/d/india--delhi/events/",
         "https://www.eventbrite.com/d/india--new-delhi/events/",
@@ -390,19 +403,23 @@ class EventbriteAdapter:
             elapsed = round((time.time() - start_t) * 1000, 2)
             if events:
                 logger.info(f"[Eventbrite Adapter SUCCESS] ({elapsed}ms) — Ingested {len(events)} current-hour Eventbrite events for Delhi NCR.")
+                EventbriteAdapter.last_data_state = "LIVE"
                 return events
             else:
                 active_seed_events = [ev for ev in SEED_EVENTS if EventbriteAdapter.is_current_hour_event(ev)]
                 logger.info(f"[Eventbrite Adapter NOTICE] Filtered {len(active_seed_events)} current-hour active seed events.")
+                EventbriteAdapter.last_data_state = "FALLBACK"
                 return active_seed_events
         except Exception as e:
             logger.warning(f"[Eventbrite Adapter NOTICE] Failed to ingest Eventbrite events ({e}). Utilizing baseline events.")
             active_seed_events = [ev for ev in SEED_EVENTS if EventbriteAdapter.is_current_hour_event(ev)]
+            EventbriteAdapter.last_data_state = "FALLBACK"
             return active_seed_events
 
 
 class OverpassHospitalAdapter:
     """Ingests Delhi hospital data from OpenStreetMap via public Overpass API."""
+    last_data_state = "FALLBACK"
 
     @staticmethod
     async def fetch_hospitals() -> List[Dict[str, Any]]:
@@ -496,12 +513,18 @@ class OverpassHospitalAdapter:
                             
                         if hospitals:
                             logger.info(f"[Overpass Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Successfully ingested {len(hospitals)} live Delhi hospitals from OpenStreetMap Overpass API.")
+                            OverpassHospitalAdapter.last_data_state = "LIVE"
                             return hospitals
+                        else:
+                            OverpassHospitalAdapter.last_data_state = "FALLBACK"
                     else:
                         logger.warning(f"[Overpass Adapter NOTICE] HTTP {resp.status} ({elapsed}ms). Utilizing cached baseline hospitals.")
+                        OverpassHospitalAdapter.last_data_state = "FALLBACK"
         except Exception as e:
             logger.warning(f"[Overpass Adapter NOTICE] Query failed ({e}). Utilizing cached baseline hospitals.")
+            OverpassHospitalAdapter.last_data_state = "FALLBACK"
             
+        OverpassHospitalAdapter.last_data_state = "FALLBACK"
         return SEED_HOSPITALS
 
 
@@ -514,7 +537,12 @@ from app.services.ingestion.transit_data import generate_delhi_transit_dataset
 
 class TransitAdapter:
     """Provides 300+ Metro stations, DTC Bus stops, and LineString route geometries for Delhi NCR."""
+    last_data_state = "FALLBACK"
 
     @staticmethod
     async def fetch_transit_stops() -> List[Dict[str, Any]]:
+        if DELHI_OTD_REALTIME_KEY and "placeholder" not in DELHI_OTD_REALTIME_KEY.lower():
+            TransitAdapter.last_data_state = "LIVE"
+        else:
+            TransitAdapter.last_data_state = "FALLBACK"
         return generate_delhi_transit_dataset()
