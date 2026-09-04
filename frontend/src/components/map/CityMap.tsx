@@ -30,6 +30,7 @@ interface CityMapProps {
   hospitals: GeoJsonFeatureCollection | null;
   transitStops: GeoJsonFeatureCollection | null;
   smartRouteResult: SmartRouteResponse | null;
+  selectedRouteCandidateId?: string;
   simulationResult: SimulationResult | null;
   onHoverFeature: (feature: GeoJsonFeature | null) => void;
   onClickFeature: (feature: GeoJsonFeature) => void;
@@ -44,6 +45,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
   hospitals,
   transitStops,
   smartRouteResult,
+  selectedRouteCandidateId,
   simulationResult,
   onHoverFeature,
   onClickFeature
@@ -51,6 +53,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [is3DPitched, setIs3DPitched] = useState(true);
 
@@ -269,9 +272,69 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
     }
   }, [weatherGrid, activeCategory, mapLoaded]);
 
-  // Update Smart Route Lines Overlay
+  // Update Public Transit Route Lines Overlay (Metro & Bus Corridors)
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
+
+    const sourceId = 'transit-routes-source';
+    const layerId = 'transit-routes-layer';
+
+    // Filter features that are LineString (transit routes)
+    const lineFeatures = (transitStops?.features || []).filter(
+      (f) => f.geometry?.type === 'LineString' || f.properties?.type === 'TRANSIT_ROUTE'
+    );
+
+    const routesGeoJSON = {
+      type: 'FeatureCollection',
+      features: lineFeatures
+    };
+
+    if (map.current.getSource(sourceId)) {
+      (map.current.getSource(sourceId) as maplibregl.GeoJSONSource).setData(routesGeoJSON as any);
+    } else if (lineFeatures.length > 0) {
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: routesGeoJSON as any
+      });
+
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          visibility: activeCategory === 'PUBLIC TRANSIT' ? 'visible' : 'none'
+        },
+        paint: {
+          'line-color': [
+            'coalesce',
+            ['get', 'line_color', ['get', 'extra_metadata']],
+            ['get', 'line_color'],
+            '#00F0FF'
+          ],
+          'line-width': 4.5,
+          'line-opacity': 0.9
+        }
+      });
+    }
+
+    if (map.current.getLayer(layerId)) {
+      map.current.setLayoutProperty(
+        layerId,
+        'visibility',
+        activeCategory === 'PUBLIC TRANSIT' ? 'visible' : 'none'
+      );
+    }
+  }, [transitStops, activeCategory, mapLoaded]);
+
+  // Update Smart Route Lines Overlay & Waypoint Markers
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    // Clear existing route start/end markers
+    routeMarkersRef.current.forEach((m) => m.remove());
+    routeMarkersRef.current = [];
 
     const sourceId = 'smart-route-source';
     const recLayerId = 'smart-route-recommended-layer';
@@ -281,24 +344,71 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
       if (map.current.getLayer(recLayerId)) map.current.removeLayer(recLayerId);
       if (map.current.getLayer(altLayerId)) map.current.removeLayer(altLayerId);
       if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
+      routeMarkersRef.current.forEach((m) => m.remove());
+      routeMarkersRef.current = [];
       return;
     }
 
-    const recRoute = smartRouteResult.routes.find((r) => r.id === smartRouteResult.recommended_route_id);
-    const altRoutes = smartRouteResult.routes.filter((r) => r.id !== smartRouteResult.recommended_route_id);
+    const activeRouteId = selectedRouteCandidateId || smartRouteResult.recommended_route_id;
+    const selectedRoute = smartRouteResult.routes.find((r) => r.id === activeRouteId);
+    const unselectedRoutes = smartRouteResult.routes.filter((r) => r.id !== activeRouteId);
+
+    // Create Start & End HTML Markers
+    if (selectedRoute && selectedRoute.geometry?.coordinates?.length) {
+      const coords = selectedRoute.geometry.coordinates;
+      const startCoord = coords[0];
+      const endCoord = coords[coords.length - 1];
+
+      if (startCoord && startCoord.length >= 2) {
+        const elStart = document.createElement('div');
+        elStart.className = 'custom-route-marker cursor-pointer transition-transform hover:scale-110';
+        elStart.innerHTML = `
+          <div class="px-2.5 py-1 rounded-full bg-emerald-600 border-2 border-white text-white font-mono text-[11px] font-extrabold shadow-glow-cyan flex items-center space-x-1">
+            <span>🟢</span><span>START</span>
+          </div>
+        `;
+        const startMarker = new maplibregl.Marker({ element: elStart })
+          .setLngLat([Number(startCoord[0]), Number(startCoord[1])])
+          .addTo(map.current!);
+        routeMarkersRef.current.push(startMarker);
+      }
+
+      if (endCoord && endCoord.length >= 2) {
+        const elEnd = document.createElement('div');
+        elEnd.className = 'custom-route-marker cursor-pointer transition-transform hover:scale-110';
+        elEnd.innerHTML = `
+          <div class="px-2.5 py-1 rounded-full bg-red-600 border-2 border-white text-white font-mono text-[11px] font-extrabold shadow-glow-red flex items-center space-x-1">
+            <span>🔴</span><span>END</span>
+          </div>
+        `;
+        const endMarker = new maplibregl.Marker({ element: elEnd })
+          .setLngLat([Number(endCoord[0]), Number(endCoord[1])])
+          .addTo(map.current!);
+        routeMarkersRef.current.push(endMarker);
+      }
+
+      // Smoothly fit map view bounds to the selected route candidate
+      try {
+        const bounds = new maplibregl.LngLatBounds();
+        coords.forEach((c: any) => bounds.extend([Number(c[0]), Number(c[1])]));
+        map.current.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 800 });
+      } catch (e) {
+        console.warn('[UrbanSync Map] Could not fit map bounds:', e);
+      }
+    }
 
     const geojsonData = {
       type: 'FeatureCollection',
       features: [
         {
           type: 'Feature',
-          geometry: recRoute?.geometry,
-          properties: { type: 'RECOMMENDED' }
+          geometry: selectedRoute?.geometry,
+          properties: { type: 'SELECTED' }
         },
-        ...altRoutes.map((alt) => ({
+        ...unselectedRoutes.map((alt) => ({
           type: 'Feature',
           geometry: alt.geometry,
-          properties: { type: 'ALTERNATIVE' }
+          properties: { type: 'UNSELECTED' }
         }))
       ]
     };
@@ -315,13 +425,16 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
         id: altLayerId,
         type: 'line',
         source: sourceId,
-        filter: ['==', 'type', 'ALTERNATIVE'],
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        filter: ['==', ['get', 'type'], 'UNSELECTED'],
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
         paint: {
           'line-color': '#64748B',
           'line-width': 4,
-          'line-opacity': 0.6,
-          'line-dasharray': [2, 2]
+          'line-dasharray': [2, 2],
+          'line-opacity': 0.6
         }
       });
 
@@ -329,8 +442,11 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
         id: recLayerId,
         type: 'line',
         source: sourceId,
-        filter: ['==', 'type', 'RECOMMENDED'],
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        filter: ['==', ['get', 'type'], 'SELECTED'],
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
         paint: {
           'line-color': '#00F0FF',
           'line-width': 7,
@@ -338,7 +454,104 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
         }
       });
     }
-  }, [smartRouteResult, mapLoaded]);
+  }, [smartRouteResult, selectedRouteCandidateId, mapLoaded]);
+
+  // Update Simulation AI Reroute Line & Markers Overlay
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    const sourceId = 'sim-route-source';
+    const layerId = 'sim-route-layer';
+
+    if (!simulationResult || !simulationResult.optimal_reroute) {
+      if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+      if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
+      routeMarkersRef.current.forEach((m) => m.remove());
+      routeMarkersRef.current = [];
+      return;
+    }
+
+    const reroute = simulationResult.optimal_reroute;
+    const coords = reroute.geometry?.coordinates;
+
+    if (coords && coords.length >= 2) {
+      const startCoord = coords[0];
+      const endCoord = coords[coords.length - 1];
+
+      // Add Start & End Markers
+      if (startCoord && startCoord.length >= 2) {
+        const elStart = document.createElement('div');
+        elStart.className = 'custom-route-marker cursor-pointer transition-transform hover:scale-110';
+        elStart.innerHTML = `
+          <div class="px-2.5 py-1 rounded-full bg-emerald-600 border-2 border-white text-white font-mono text-[11px] font-extrabold shadow-glow-cyan flex items-center space-x-1">
+            <span>🟢</span><span>START</span>
+          </div>
+        `;
+        const startMarker = new maplibregl.Marker({ element: elStart })
+          .setLngLat([Number(startCoord[0]), Number(startCoord[1])])
+          .addTo(map.current!);
+        routeMarkersRef.current.push(startMarker);
+      }
+
+      if (endCoord && endCoord.length >= 2) {
+        const elEnd = document.createElement('div');
+        elEnd.className = 'custom-route-marker cursor-pointer transition-transform hover:scale-110';
+        elEnd.innerHTML = `
+          <div class="px-2.5 py-1 rounded-full bg-red-600 border-2 border-white text-white font-mono text-[11px] font-extrabold shadow-glow-red flex items-center space-x-1">
+            <span>🔴</span><span>END</span>
+          </div>
+        `;
+        const endMarker = new maplibregl.Marker({ element: elEnd })
+          .setLngLat([Number(endCoord[0]), Number(endCoord[1])])
+          .addTo(map.current!);
+        routeMarkersRef.current.push(endMarker);
+      }
+
+      // Smoothly fit map view bounds
+      try {
+        const bounds = new maplibregl.LngLatBounds();
+        coords.forEach((c: any) => bounds.extend([Number(c[0]), Number(c[1])]));
+        map.current.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 800 });
+      } catch (e) {
+        console.warn('[UrbanSync Map] Could not fit simulation map bounds:', e);
+      }
+    }
+
+    const geojsonData = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: reroute.geometry,
+          properties: {}
+        }
+      ]
+    };
+
+    if (map.current.getSource(sourceId)) {
+      (map.current.getSource(sourceId) as maplibregl.GeoJSONSource).setData(geojsonData as any);
+    } else {
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: geojsonData as any
+      });
+
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#00F0FF',
+          'line-width': 7,
+          'line-opacity': 0.95
+        }
+      });
+    }
+  }, [simulationResult, mapLoaded]);
 
   // Update Category HTML Markers
   useEffect(() => {
@@ -354,8 +567,8 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
       allFeatures.push(...events.features);
     }
     if (trafficIncidents) {
-      const filteredIncidents = trafficIncidents.features.filter((feat) => {
-        const type = feat.properties.type;
+      const filteredIncidents = trafficIncidents.features.filter((f) => {
+        const type = f.properties.type;
         if (activeCategory === 'ALL') return true;
         if (activeCategory === 'TRAFFIC') return type === 'TRAFFIC' || type === 'CONGESTION';
         if (activeCategory === 'ACCIDENTS') return type === 'ACCIDENT';
@@ -370,8 +583,11 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
     if (['ALL', 'HOSPITALS'].includes(activeCategory) && hospitals) {
       allFeatures.push(...hospitals.features);
     }
-    if (['ALL', 'PUBLIC TRANSIT'].includes(activeCategory) && transitStops) {
-      allFeatures.push(...transitStops.features);
+    if (activeCategory === 'PUBLIC TRANSIT' && transitStops) {
+      const pointStops = transitStops.features.filter(
+        (f) => f.geometry?.type === 'Point' || f.properties?.type === 'TRANSIT'
+      );
+      allFeatures.push(...pointStops);
     }
 
     console.log(`[UrbanSync Map] Rendering ${allFeatures.length} markers for category: ${activeCategory}`);
@@ -401,6 +617,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
 
       let colorBg = 'bg-cyan-brand border-cyan-glow';
       let iconSymbol = '●';
+      let customStyle = '';
 
       if (type === 'EVENT') {
         colorBg = 'bg-pink-500 border-pink-300 shadow-glow-purple';
@@ -418,12 +635,20 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
         colorBg = 'bg-cyan-500 border-cyan-300 shadow-glow-cyan';
         iconSymbol = '✚';
       } else if (type === 'TRANSIT') {
-        colorBg = 'bg-emerald-500 border-emerald-300';
-        iconSymbol = 'Ⓜ';
+        const transitType = feat.properties.extra_metadata?.transit_type || 'METRO';
+        const lineColor = feat.properties.extra_metadata?.line_color;
+        if (transitType === 'BUS') {
+          colorBg = 'bg-sky-500 border-sky-300 shadow-glow-cyan';
+          iconSymbol = '🚌';
+        } else {
+          colorBg = 'border-white text-black font-extrabold';
+          customStyle = `background-color: ${lineColor || '#10B981'}; color: #ffffff;`;
+          iconSymbol = '🚅';
+        }
       }
 
       el.innerHTML = `
-        <div class="w-7 h-7 rounded-full ${colorBg} border-2 text-white flex items-center justify-center font-bold text-xs shadow-lg">
+        <div class="w-7 h-7 rounded-full ${colorBg} border-2 flex items-center justify-center font-bold text-xs shadow-lg" style="${customStyle}">
           ${iconSymbol}
         </div>
       `;

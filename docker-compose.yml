@@ -32,8 +32,6 @@ services:
       - TOMTOM_API_KEY=${TOMTOM_API_KEY}
       - WEATHERAPI_KEY=${WEATHERAPI_KEY}
       - OPEN_METEO_ENABLED=${OPEN_METEO_ENABLED:-true}
-      - INDTIX_API_KEY=${INDTIX_API_KEY}
-      - INDTIX_API_URL=${INDTIX_API_URL:-https://api.indtix.com/v1/events}
       - OVERPASS_API_URL=${OVERPASS_API_URL:-https://overpass-api.de/api/interpreter}
       - DELHI_OTD_REALTIME_KEY=${DELHI_OTD_REALTIME_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}

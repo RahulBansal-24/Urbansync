@@ -57,7 +57,12 @@ export const calculateSmartRoute = async (payload: {
 };
 
 export const runCitySimulation = async (payload: {
+  origin?: number[];
+  destination?: number[];
+  origin_name?: string;
+  destination_name?: string;
   road_closures: string[];
+  event_locations?: string[];
   traffic_increase_pct: number;
   weather_severity: string;
   affected_weather_region?: string;

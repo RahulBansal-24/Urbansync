@@ -113,7 +113,7 @@ export const HospitalRankerPanel: React.FC<HospitalRankerPanelProps> = ({ onClos
 
                   <div className="flex items-center justify-between text-xs text-slate-300 pt-1 border-t border-dark-border/50">
                     <span>ETA: <strong className="text-white">{h.eta_minutes} min</strong> ({h.distance_km} km)</span>
-                    <span className="text-emerald-400 font-mono font-bold">{h.reported_icu_beds} ICU Beds</span>
+                    <span className="text-emerald-400 font-mono font-bold">{h.reported_general_beds || 100} Total Hospital Beds</span>
                   </div>
 
                   <a

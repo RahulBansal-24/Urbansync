@@ -5,7 +5,7 @@
 UrbanSync follows a centralized live data architecture where external APIs are consumed exclusively by background ingestion adapters in FastAPI, stored in PostgreSQL/PostGIS, evaluated by spatial and ML engines, and broadcast to Next.js MapLibre GL JS clients over WebSockets.
 
 ```
-EXTERNAL APIs (TomTom Map & Traffic & Routing, WeatherAPI, INDTIX Events, OpenStreetMap Overpass, Groq)
+EXTERNAL APIs (TomTom Map & Traffic & Routing, WeatherAPI, Eventbrite Public Events, OpenStreetMap Overpass, Groq)
                     ↓ (Central Ingestion Adapters)
          FASTAPI BACKEND & SCHEDULER
                     ↓ (Spatial Queries & ORM)

@@ -2,6 +2,9 @@ import os
 import math
 import time
 import logging
+import re
+import json
+import hashlib
 import aiohttp
 from typing import List, Dict, Any
 from app.database.seed_data import SEED_EVENTS, SEED_TRAFFIC_INCIDENTS, SEED_WEATHER_CELLS, SEED_HOSPITALS, SEED_TRANSIT_STOPS
@@ -55,8 +58,6 @@ def infer_delhi_road_name(lat: float, lon: float, from_loc: str = "", to_loc: st
 # API Configuration from Environment
 TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
 WEATHERAPI_KEY = os.getenv("WEATHERAPI_KEY", "")
-INDTIX_API_KEY = os.getenv("INDTIX_API_KEY", "")
-INDTIX_API_URL = os.getenv("INDTIX_API_URL", "https://api.indtix.com/v1/events")
 OVERPASS_API_URL = os.getenv("OVERPASS_API_URL", "https://overpass-api.de/api/interpreter")
 DELHI_OTD_REALTIME_KEY = os.getenv("DELHI_OTD_REALTIME_KEY", "")
 OPEN_METEO_ENABLED = os.getenv("OPEN_METEO_ENABLED", "true").lower() == "true"
@@ -234,62 +235,144 @@ class WeatherAdapter:
         return SEED_WEATHER_CELLS
 
 
-class INDTIXAdapter:
-    """Ingests live event data from INDTIX API for Delhi region."""
+class EventbriteAdapter:
+    """Ingests live public event data for Delhi NCR region from Eventbrite public listing pages."""
     
+    EVENTBRITE_URLS = [
+        "https://www.eventbrite.com/d/india--delhi/events/",
+        "https://www.eventbrite.com/d/india--new-delhi/events/",
+        "https://www.eventbrite.com/d/india--delhi-ncr/events/"
+    ]
+    
+    KNOWN_VENUES = {
+        "pragati maidan": (28.6183, 77.2415),
+        "bharat mandapam": (28.6183, 77.2415),
+        "india habitat centre": (28.5901, 77.2251),
+        "ihc": (28.5901, 77.2251),
+        "arun jaitley stadium": (28.6379, 77.2427),
+        "kotla": (28.6379, 77.2427),
+        "jawaharlal nehru stadium": (28.5828, 77.2344),
+        "jln stadium": (28.5828, 77.2344),
+        "du north campus": (28.6890, 77.2100),
+        "connaught place": (28.6315, 77.2167),
+        "cyber city": (28.4950, 77.0890),
+        "dlf phase 2": (28.4950, 77.0890),
+        "gurgaon": (28.4595, 77.0266),
+        "noida": (28.5355, 77.3910),
+        "aerocity": (28.5504, 77.1213),
+        "saket": (28.5284, 77.2185)
+    }
+
     @staticmethod
     async def fetch_events() -> List[Dict[str, Any]]:
-        if not INDTIX_API_KEY or "placeholder" in INDTIX_API_KEY.lower():
-            logger.info("[INDTIX Adapter] INDTIX_API_KEY not supplied/placeholder. Utilizing INDTIX baseline event data.")
-            return SEED_EVENTS
-
-        url = f"{INDTIX_API_URL}?city=Delhi&limit=15"
-        headers = {"Authorization": f"Bearer {INDTIX_API_KEY}"}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        }
+        seen_urls = set()
+        events = []
         start_t = time.time()
+
         try:
-            logger.info(f"[INDTIX Adapter Request] GET {url}")
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=5) as resp:
-                    elapsed = round((time.time() - start_t) * 1000, 2)
-                    if resp.status == 200:
-                        data = await resp.json()
-                        raw_events = data.get("data", []) or data.get("events", [])
-                        events = []
-                        for idx, ev in enumerate(raw_events[:10]):
-                            venue_name = ev.get("venue", {}).get("name", "Delhi Venue") if isinstance(ev.get("venue"), dict) else str(ev.get("venue", "Delhi Venue"))
-                            lat = float(ev.get("latitude", 28.6139))
-                            lon = float(ev.get("longitude", 77.2090))
-                            
-                            events.append({
-                                "id": f"EVT-INDTIX-{idx}",
-                                "title": ev.get("title") or ev.get("name", "Delhi Public Event"),
-                                "description": ev.get("description", f"Event at {venue_name}. Source: INDTIX."),
-                                "category": "Event",
-                                "latitude": lat,
-                                "longitude": lon,
-                                "venue_name": venue_name,
-                                "expected_attendance": int(ev.get("expected_attendance", 18000)),
-                                "severity": ev.get("severity", "HIGH"),
-                                "status": "ACTIVE",
-                                "source_name": "INDTIX API",
-                                "source_url": ev.get("url", "https://indtix.com"),
-                                "traffic_impact_score": float(ev.get("traffic_impact_score", 78.0)),
-                                "crowd_impact_score": float(ev.get("crowd_impact_score", 82.0)),
-                                "parking_impact_score": float(ev.get("parking_impact_score", 88.0)),
-                                "transit_impact_score": float(ev.get("transit_impact_score", 72.0)),
-                                "emergency_impact_score": float(ev.get("emergency_impact_score", 38.0)),
-                                "impact_radius_meters": float(ev.get("impact_radius_meters", 1500.0)),
-                                "data_state": "LIVE"
-                            })
-                        if events:
-                            logger.info(f"[INDTIX Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Ingested {len(events)} INDTIX events.")
-                            return events
-                    else:
-                        logger.info(f"[INDTIX Adapter NOTICE] HTTP {resp.status} ({elapsed}ms). Utilizing verified INDTIX baseline events.")
+                for url in EventbriteAdapter.EVENTBRITE_URLS:
+                    logger.info(f"[Eventbrite Adapter Request] GET {url}")
+                    try:
+                        async with session.get(url, headers=headers, timeout=8) as resp:
+                            if resp.status == 200:
+                                html = await resp.text()
+                                matches = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
+                                for block in matches:
+                                    try:
+                                        data = json.loads(block.strip())
+                                        raw_items = []
+                                        if isinstance(data, dict) and data.get('@type') == 'ItemList':
+                                            raw_items = [x.get('item', x) for x in data.get('itemListElement', [])]
+                                        elif isinstance(data, list):
+                                            raw_items = [x for x in data if isinstance(x, dict) and x.get('@type') == 'Event']
+
+                                        for item in raw_items:
+                                            if not isinstance(item, dict) or item.get('@type') != 'Event':
+                                                continue
+
+                                            eb_url = item.get('url', '')
+                                            if not eb_url or eb_url in seen_urls:
+                                                continue
+                                            seen_urls.add(eb_url)
+
+                                            title = item.get('name') or "Delhi Public Event"
+                                            loc = item.get('location', {})
+                                            venue_name = loc.get('name') if isinstance(loc, dict) else "Delhi NCR Venue"
+                                            if not venue_name:
+                                                venue_name = "Delhi NCR Venue"
+
+                                            # Derive coordinates
+                                            lat, lon = None, None
+                                            geo = loc.get('geo', {}) if isinstance(loc, dict) else {}
+                                            if isinstance(geo, dict) and 'latitude' in geo and 'longitude' in geo:
+                                                try:
+                                                    lat = float(geo['latitude'])
+                                                    lon = float(geo['longitude'])
+                                                except (ValueError, TypeError):
+                                                    pass
+
+                                            if lat is None or lon is None:
+                                                v_lower = venue_name.lower()
+                                                for k_v, (k_lat, k_lon) in EventbriteAdapter.KNOWN_VENUES.items():
+                                                    if k_v in v_lower:
+                                                        lat, lon = k_lat, k_lon
+                                                        break
+
+                                            if lat is None or lon is None:
+                                                h_hash = int(hashlib.md5(eb_url.encode()).hexdigest(), 16)
+                                                offset_lat = ((h_hash % 100) - 50) * 0.001
+                                                offset_lon = (((h_hash >> 8) % 100) - 50) * 0.001
+                                                lat = 28.6139 + offset_lat
+                                                lon = 77.2090 + offset_lon
+
+                                            eb_id = re.search(r'tickets-(\d+)', eb_url)
+                                            event_id = f"EVT-EB-{eb_id.group(1)}" if eb_id else f"EVT-EB-{hashlib.md5(eb_url.encode()).hexdigest()[:8]}"
+
+                                            attendance = 15000 if ("stadium" in venue_name.lower() or "summit" in title.lower()) else 5000
+
+                                            events.append({
+                                                "id": event_id,
+                                                "title": title,
+                                                "description": f"Public Eventbrite listing: {title}. Scheduled at {venue_name}.",
+                                                "category": "Event",
+                                                "latitude": round(lat, 5),
+                                                "longitude": round(lon, 5),
+                                                "venue_name": venue_name,
+                                                "expected_attendance": attendance,
+                                                "severity": "HIGH" if attendance >= 15000 else "MEDIUM",
+                                                "status": "ACTIVE",
+                                                "source_name": "Eventbrite",
+                                                "source_url": eb_url,
+                                                "traffic_impact_score": 80.0 if attendance >= 15000 else 55.0,
+                                                "crowd_impact_score": 85.0 if attendance >= 15000 else 60.0,
+                                                "parking_impact_score": 88.0 if attendance >= 15000 else 65.0,
+                                                "transit_impact_score": 75.0 if attendance >= 15000 else 50.0,
+                                                "emergency_impact_score": 40.0,
+                                                "impact_radius_meters": 2000.0 if attendance >= 15000 else 1000.0,
+                                                "data_state": "LIVE"
+                                            })
+                                    except Exception as err:
+                                        logger.debug(f"[Eventbrite Adapter] JSON-LD block parse skip: {err}")
+                            else:
+                                logger.warning(f"[Eventbrite Adapter] HTTP {resp.status} for {url}")
+                    except Exception as e:
+                        logger.warning(f"[Eventbrite Adapter] Error fetching {url}: {e}")
+
+            elapsed = round((time.time() - start_t) * 1000, 2)
+            if events:
+                logger.info(f"[Eventbrite Adapter SUCCESS] ({elapsed}ms) — Ingested {len(events)} live Eventbrite events for Delhi NCR.")
+                return events
+            else:
+                logger.info(f"[Eventbrite Adapter NOTICE] No live Eventbrite events found. Utilizing baseline events.")
+                return SEED_EVENTS
         except Exception as e:
-            logger.info(f"[INDTIX Adapter NOTICE] Endpoint unreachable ({e}). Utilizing verified INDTIX baseline events.")
-            
-        return SEED_EVENTS
+            logger.warning(f"[Eventbrite Adapter NOTICE] Failed to ingest Eventbrite events ({e}). Utilizing baseline events.")
+            return SEED_EVENTS
 
 
 class OverpassHospitalAdapter:
@@ -338,13 +421,30 @@ class OverpassHospitalAdapter:
                             has_cardiac = "cardiac" in name.lower() or "heart" in name.lower()
                             has_pediatric = "child" in name.lower() or "pediatric" in name.lower()
 
-                            beds_count = 15
+                            name_lower = name.lower()
+                            beds_count = 75
                             if tags.get("capacity:persons"):
                                 try: beds_count = int(tags.get("capacity:persons"))
                                 except: pass
                             elif tags.get("beds"):
                                 try: beds_count = int(tags.get("beds"))
                                 except: pass
+                            elif "aiims" in name_lower or "all india institute" in name_lower:
+                                beds_count = 2478
+                            elif "safdarjung" in name_lower:
+                                beds_count = 1531
+                            elif "ram manohar lohia" in name_lower or "rml" in name_lower:
+                                beds_count = 1420
+                            elif "lok nayak" in name_lower or "lnjp" in name_lower:
+                                beds_count = 2000
+                            elif "fortis" in name_lower:
+                                beds_count = 250
+                            elif "max" in name_lower:
+                                beds_count = 350
+                            elif "apollo" in name_lower:
+                                beds_count = 710
+                            elif "ganga ram" in name_lower:
+                                beds_count = 675
 
                             hospitals.append({
                                 "id": f"HSP-OSM-{elem.get('id', idx)}",
@@ -384,9 +484,11 @@ class HospitalAdapter(OverpassHospitalAdapter):
     pass
 
 
+from app.services.ingestion.transit_data import generate_delhi_transit_dataset
+
 class TransitAdapter:
-    """Provides transit data from Delhi Open Transit Data (GTFS)."""
+    """Provides 300+ Metro stations, DTC Bus stops, and LineString route geometries for Delhi NCR."""
 
     @staticmethod
     async def fetch_transit_stops() -> List[Dict[str, Any]]:
-        return SEED_TRANSIT_STOPS
+        return generate_delhi_transit_dataset()

@@ -19,9 +19,8 @@ NEXT_PUBLIC_TOMTOM_API_KEY=your_tomtom_key_here
 WEATHERAPI_KEY=your_weatherapi_key_here
 OPEN_METEO_ENABLED=true
 
-# INDTIX EVENTS API
-INDTIX_API_KEY=your_indtix_api_key_here
-INDTIX_API_URL=https://api.indtix.com/v1/events
+# EVENTBRITE PUBLIC INGESTION (No API key required)
+# Ingests live public events from Eventbrite listing pages
 
 # OPENSTREETMAP OVERPASS API (No API key required)
 OVERPASS_API_URL=https://overpass-api.de/api/interpreter

@@ -3,7 +3,7 @@ import logging
 from app.services.ingestion.adapters import (
     TomTomAdapter,
     WeatherAdapter,
-    INDTIXAdapter,
+    EventbriteAdapter,
     OverpassHospitalAdapter,
     TransitAdapter
 )
@@ -31,11 +31,12 @@ class BackgroundIngestionScheduler:
         # Run initial fetch on server start
         self.traffic_incidents = await TomTomAdapter.fetch_incidents()
         self.weather_cells = await WeatherAdapter.fetch_weather_cells()
-        self.events = await INDTIXAdapter.fetch_events()
+        self.events = await EventbriteAdapter.fetch_events()
         self.hospitals = await OverpassHospitalAdapter.fetch_hospitals()
         self.transit_stops = await TransitAdapter.fetch_transit_stops()
         
-        logger.info(f"UrbanSync Initial Ingestion Complete: {len(self.traffic_incidents)} incidents, {len(self.events)} INDTIX events, {len(self.hospitals)} OSM hospitals, {len(self.weather_cells)} weather cells loaded.")
+        logger.info(f"UrbanSync Initial Ingestion Complete: {len(self.traffic_incidents)} incidents, {len(self.events)} Eventbrite events, {len(self.hospitals)} OSM hospitals, {len(self.weather_cells)} weather cells loaded.")
 
     async def stop(self):
         self.is_running = False
+

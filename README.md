@@ -67,7 +67,7 @@ Powered by **MapLibre GL JS** and **TomTom APIs**, UrbanSync goes beyond passive
 | **TomTom Traffic API** | Live Traffic Incidents & Bounding Box Details | Real-time traffic delays, accidents, and corridor congestion in Delhi |
 | **TomTom Routing API** | Route Calculation Engine | Multi-candidate route geometry, travel times, and distance calculations |
 | **OpenStreetMap / Overpass API** | Open Spatial Queries (`overpass-api.de`) | Live retrieval of verified hospital locations, addresses, and emergency facilities |
-| **INDTIX API** | Live Regional Event Feed | Spectator gathering locations, attendance bounds, and crowd radius calculation |
+| **Eventbrite Public Feed** | Live Regional Event Ingestion | Spectator gathering locations, attendance bounds, and crowd radius calculation |
 | **WeatherAPI.com / Open-Meteo** | Live Weather & Forecast API | Localized precipitation, visibility, and weather cell overlay |
 | **Delhi Open Transit Data** | GTFS Delhi Metro & Bus Feed | Public transit stop locations and multi-modal transit interchange markers |
 
@@ -80,7 +80,7 @@ Powered by **MapLibre GL JS** and **TomTom APIs**, UrbanSync goes beyond passive
 │                          URBANSYNC DATA PIPELINE                            │
 └─────────────────────────────────────────────────────────────────────────────┘
   │
-  ├── 🛰️ INGESTION ADAPTERS (TomTom, Overpass OSM, INDTIX, WeatherAPI)
+  ├── 🛰️ INGESTION ADAPTERS (TomTom, Overpass OSM, Eventbrite, WeatherAPI)
   │     └─► Asynchronous fetch with fallback seeds for 100% uptime
   │
   ├── 🧮 SPATIAL & GRAPH PROCESSING ENGINES
@@ -110,7 +110,7 @@ urbansync/
 │   │   ├── models/                 # SQLAlchemy & Pydantic schemas
 │   │   └── services/
 │   │       ├── hospital/           # Emergency hospital ranking engine
-│   │       ├── ingestion/          # Data adapters (TomTom, OSM, INDTIX, Weather)
+│   │       ├── ingestion/          # Data adapters (TomTom, OSM, Eventbrite, Weather)
 │   │       ├── routing/            # Smart Route scoring & NetworkX graph engine
 │   │       └── simulation/         # What-If city scenario simulator
 │   ├── run_tests.py                # Backend automated verification suite
@@ -164,9 +164,8 @@ TOMTOM_API_KEY=YOUR_TOMTOM_API_KEY_HERE
 WEATHERAPI_KEY=YOUR_WEATHERAPI_KEY_HERE
 OPEN_METEO_ENABLED=true
 
-# INDTIX EVENTS API (https://www.indtix.com/)
-INDTIX_API_KEY=YOUR_INDTIX_API_KEY_HERE
-INDTIX_API_URL=https://api.indtix.com/v1/events
+# EVENTBRITE PUBLIC INGESTION (No API key required)
+# Ingests live public events from Eventbrite listing pages
 
 # OPENSTREETMAP OVERPASS API (No API key required)
 OVERPASS_API_URL=https://overpass-api.de/api/interpreter

@@ -32,8 +32,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({ activeCategory, onSele
     { name: 'ROAD BLOCKS', icon: <AlertTriangle className="w-3.5 h-3.5" />, color: 'text-red-400' },
     { name: 'ACCIDENTS', icon: <Flame className="w-3.5 h-3.5" />, color: 'text-red-500' },
     { name: 'HOSPITALS', icon: <Hospital className="w-3.5 h-3.5" />, color: 'text-cyan-400' },
-    { name: 'PUBLIC TRANSIT', icon: <Bus className="w-3.5 h-3.5" />, color: 'text-emerald-400' },
-    { name: 'PREDICTIONS', icon: <Brain className="w-3.5 h-3.5" />, color: 'text-purple-400' }
+    { name: 'PUBLIC TRANSIT', icon: <Bus className="w-3.5 h-3.5" />, color: 'text-emerald-400' }
   ];
 
   return (

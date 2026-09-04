@@ -1,15 +1,14 @@
 export type LayerCategory = 
   | 'ALL'
   | 'SMART ROUTE'
-  | 'WEATHER'
+  | 'SIMULATION'
   | 'TRAFFIC'
+  | 'WEATHER'
   | 'EVENTS'
   | 'ROAD BLOCKS'
   | 'ACCIDENTS'
   | 'HOSPITALS'
-  | 'PUBLIC TRANSIT'
-  | 'PREDICTIONS'
-  | 'SIMULATION';
+  | 'PUBLIC TRANSIT';
 
 export type DataState = 'LIVE' | 'DERIVED' | 'PREDICTED' | 'SIMULATED' | 'STATIC';
 
@@ -80,6 +79,19 @@ export interface TopCorridorImpact {
   status: string;
 }
 
+export interface SimulationReasoning {
+  origin_name: string;
+  destination_name: string;
+  avoided_closures: string[];
+  avoided_events: string[];
+  traffic_surge: string;
+  weather_condition: string;
+  baseline_eta: number;
+  simulated_eta: number;
+  urbansync_safety_score: number;
+  strategic_explanation: string;
+}
+
 export interface SimulationResult {
   scenario_id: string;
   data_state: DataState;
@@ -101,6 +113,8 @@ export interface SimulationResult {
   top_impacted_corridors: TopCorridorImpact[];
   top_alternative_detours: string[];
   ai_summary: string;
+  optimal_reroute?: RouteCandidate;
+  reroute_reasoning?: SimulationReasoning;
   timestamp: string;
 }
 
@@ -114,7 +128,8 @@ export interface HospitalRankItem {
   suitability_score: number;
   has_emergency: boolean;
   has_trauma_center: boolean;
-  reported_icu_beds: number;
+  reported_icu_beds?: number;
+  reported_general_beds?: number;
   availability_status: string;
   google_maps_url: string;
   reasoning: string;

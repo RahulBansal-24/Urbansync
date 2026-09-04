@@ -109,9 +109,9 @@ class UrbanSyncAIAssistant:
         elif "simulate" in q_lower or "ring road" in q_lower:
             ans = "Simulation Analysis: Closing Ring Road under heavy rainfall redistributes traffic onto Barapullah Elevated Corridor and Outer Ring Road, resulting in a +48.5% surge in average travel ETA."
         elif "event" in q_lower:
-            ans = "Major Active Events in Delhi (Source: INDTIX): 1. Delhi Tech & AI Summit at Bharat Mandapam (25,000 attendees). 2. IPL T20 Match at Arun Jaitley Stadium (42,000 attendees, high congestion near ITO)."
+            ans = "Major Active Events in Delhi (Source: Eventbrite): 1. Delhi Tech & AI Summit at Bharat Mandapam (25,000 attendees). 2. IPL T20 Match at Arun Jaitley Stadium (42,000 attendees, high congestion near ITO)."
         else:
-            ans = f"UrbanSync City Intelligence observing Delhi: System is currently monitoring active traffic incidents on NH-48, weather spatial cells across South Delhi, INDTIX events at Bharat Mandapam, and OpenStreetMap hospital facilities."
+            ans = f"UrbanSync City Intelligence observing Delhi: System is currently monitoring active traffic incidents on NH-48, weather spatial cells across South Delhi, Eventbrite events at Bharat Mandapam, and OpenStreetMap hospital facilities."
 
         return AssistantChatResponse(
             message=ans,

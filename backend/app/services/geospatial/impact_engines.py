@@ -77,9 +77,9 @@ class HospitalRankingEngine:
             # Distance score (0 to 30 pts)
             dist_score = max(0.0, 30.0 - (dist_km * 1.5))
 
-            # Bed score (0 to 20 pts)
-            icu_beds = h.get("reported_icu_beds", 10)
-            bed_score = min(20.0, (icu_beds / 30.0) * 20.0)
+            # Total Hospital Bed Capacity score (0 to 20 pts)
+            gen_beds = h.get("reported_general_beds", 100)
+            bed_score = min(20.0, (gen_beds / 300.0) * 20.0)
 
             # Rating score (0 to 10 pts)
             rating = h.get("rating", 4.0)
@@ -91,8 +91,9 @@ class HospitalRankingEngine:
             h_copy["distance_km"] = dist_km
             h_copy["eta_minutes"] = eta_min
             h_copy["suitability_score"] = suitability
+            h_copy["reported_general_beds"] = gen_beds
             h_copy["google_maps_url"] = f"https://www.google.com/maps/dir/?api=1&destination={h['latitude']},{h['longitude']}"
-            h_copy["reasoning"] = f"Distance: {dist_km} km ({eta_min} min ETA). Matched emergency care for {emergency_type} with {icu_beds} ICU beds."
+            h_copy["reasoning"] = f"Distance: {dist_km} km ({eta_min} min ETA). Matched emergency care for {emergency_type} with {gen_beds} Total Hospital Beds."
             ranked.append(h_copy)
 
         # Sort descending by suitability score

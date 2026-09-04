@@ -194,19 +194,24 @@ class SmartRouteEngine:
                         "penalty": -8.0
                     })
 
-            # Calculate UrbanSync Route Score (0 - 100)
+            # Calculate UrbanSync Route Score (0 - 100) based on Preference
             time_score = max(0.0, 100.0 - (eta * 1.5))
             incident_score = max(0.0, 100.0 - (avoided_incidents * 20.0) - (closures_intersected * 40.0))
-            event_score = max(0.0, 100.0 - (passed_events * 25.0))
+            event_score = max(0.0, 100.0 - (passed_events * 35.0))
             weather_score = max(0.0, 100.0 - weather_risk_score)
 
-            weighted_score = (time_score * 0.40) + (incident_score * 0.35) + (event_score * 0.15) + (weather_score * 0.10)
-            
-            # Apply user preference adjustments
-            if req.preference == "safer" and closures_intersected > 0:
-                weighted_score -= 20.0
-            elif req.preference == "avoid_events" and passed_events > 0:
-                weighted_score -= 15.0
+            if req.preference == "fastest":
+                weighted_score = (time_score * 0.65) + (incident_score * 0.20) + (event_score * 0.10) + (weather_score * 0.05)
+            elif req.preference == "safer":
+                weighted_score = (incident_score * 0.60) + (time_score * 0.25) + (event_score * 0.10) + (weather_score * 0.05)
+                if closures_intersected > 0:
+                    weighted_score -= 30.0
+            elif req.preference == "avoid_events":
+                weighted_score = (event_score * 0.55) + (incident_score * 0.25) + (time_score * 0.15) + (weather_score * 0.05)
+                if passed_events > 0:
+                    weighted_score -= 25.0
+            else: # balanced
+                weighted_score = (time_score * 0.40) + (incident_score * 0.35) + (event_score * 0.15) + (weather_score * 0.10)
 
             final_score = round(min(100.0, max(10.0, weighted_score)), 1)
 

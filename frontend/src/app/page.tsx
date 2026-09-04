@@ -10,6 +10,7 @@ import { MapControls } from '../components/map/MapControls';
 import { DetailPanel } from '../components/panels/DetailPanel';
 import { SmartRoutePanel } from '../components/routing/SmartRoutePanel';
 import { SimulationPanel } from '../components/simulation/SimulationPanel';
+import { SimulationReasoningPanel } from '../components/simulation/SimulationReasoningPanel';
 import { HospitalRankerPanel } from '../components/hospitals/HospitalRankerPanel';
 import { AIAssistantWidget } from '../components/assistant/AIAssistantWidget';
 
@@ -49,6 +50,7 @@ export default function Home() {
 
   // Flagship AI States
   const [smartRouteResult, setSmartRouteResult] = useState<SmartRouteResponse | null>(null);
+  const [selectedRouteCandidateId, setSelectedRouteCandidateId] = useState<string>('');
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
 
   // Panel & Hover Interaction States
@@ -99,7 +101,10 @@ export default function Home() {
   // Category Switch Handler
   const handleSelectCategory = (cat: LayerCategory) => {
     setActiveCategory(cat);
-    if (cat !== 'SMART ROUTE') setSmartRouteResult(null);
+    if (cat !== 'SMART ROUTE') {
+      setSmartRouteResult(null);
+      setSelectedRouteCandidateId('');
+    }
     if (cat !== 'SIMULATION') setSimulationResult(null);
   };
 
@@ -130,6 +135,7 @@ export default function Home() {
         hospitals={hospitalsData}
         transitStops={transitData}
         smartRouteResult={smartRouteResult}
+        selectedRouteCandidateId={selectedRouteCandidateId}
         simulationResult={simulationResult}
         onHoverFeature={(feat) => {
           if (!lockedFeature) setHoveredFeature(feat);
@@ -150,21 +156,41 @@ export default function Home() {
       {/* FLAGSHIP #1: AI Smart Route Drawer */}
       {activeCategory === 'SMART ROUTE' && (
         <SmartRoutePanel
-          onRouteCalculated={(result) => setSmartRouteResult(result)}
-          onSelectRouteCandidate={(candidate: RouteCandidate) => {
-            console.log('Selected Candidate Route:', candidate);
+          onRouteCalculated={(result) => {
+            setSmartRouteResult(result);
+            if (result.recommended_route_id) {
+              setSelectedRouteCandidateId(result.recommended_route_id);
+            }
           }}
-          onClose={() => setActiveCategory('ALL')}
+          onSelectRouteCandidate={(candidate: RouteCandidate) => {
+            setSelectedRouteCandidateId(candidate.id);
+          }}
+          onClose={() => {
+            setSmartRouteResult(null);
+            setSelectedRouteCandidateId('');
+            setActiveCategory('ALL');
+          }}
         />
       )}
 
       {/* FLAGSHIP #2: AI What-If City Simulation Drawer */}
       {activeCategory === 'SIMULATION' && (
-        <SimulationPanel
-          onSimulationRun={(result) => setSimulationResult(result)}
-          onResetSimulation={() => setSimulationResult(null)}
-          onClose={() => setActiveCategory('ALL')}
-        />
+        <>
+          <SimulationPanel
+            onSimulationRun={(result) => setSimulationResult(result)}
+            onResetSimulation={() => setSimulationResult(null)}
+            onClose={() => {
+              setSimulationResult(null);
+              setActiveCategory('ALL');
+            }}
+          />
+          {simulationResult && (
+            <SimulationReasoningPanel
+              simulationResult={simulationResult}
+              onClose={() => setSimulationResult(null)}
+            />
+          )}
+        </>
       )}
 
       {/* Hospitals Suitability Ranker Drawer */}

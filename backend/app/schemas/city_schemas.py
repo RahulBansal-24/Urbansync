@@ -59,9 +59,14 @@ class SmartRouteResponse(BaseModel):
 
 # Simulation Schemas
 class SimulationScenarioInput(BaseModel):
-    road_closures: List[str] = Field(default_factory=list, description="List of road names to close, e.g. Ring Road")
-    traffic_increase_pct: float = Field(default=0.0, description="Traffic demand multiplier, e.g. 30 for +30%")
-    weather_severity: str = Field(default="Clear", description="Clear, Light Rain, Moderate Rain, Heavy Rain, Fog")
+    origin: Optional[List[float]] = Field(default_factory=lambda: [77.2197, 28.6315], description="Origin [lon, lat]")
+    destination: Optional[List[float]] = Field(default_factory=lambda: [77.1000, 28.5562], description="Destination [lon, lat]")
+    origin_name: Optional[str] = "Connaught Place (Rajiv Chowk)"
+    destination_name: Optional[str] = "IGI Airport Terminal 3"
+    road_closures: List[str] = Field(default_factory=list, description="List of closed road corridors")
+    event_locations: List[str] = Field(default_factory=list, description="List of active event venues")
+    traffic_increase_pct: float = Field(default=0.0, description="Traffic surge percentage")
+    weather_severity: str = Field(default="Clear", description="Weather condition")
     affected_weather_region: Optional[str] = "South Delhi"
     event_location_name: Optional[str] = None
     event_coordinates: Optional[List[float]] = None
@@ -83,6 +88,8 @@ class SimulationResult(BaseModel):
     top_impacted_corridors: List[TopCorridorImpact]
     top_alternative_detours: List[str]
     ai_summary: str
+    optimal_reroute: Optional[RouteCandidate] = None
+    reroute_reasoning: Optional[Dict[str, Any]] = None
     timestamp: str
 
 # Hospital Ranker Schemas
@@ -100,7 +107,8 @@ class HospitalRankItem(BaseModel):
     suitability_score: float # 0 - 100
     has_emergency: bool
     has_trauma_center: bool
-    reported_icu_beds: int
+    reported_icu_beds: int = 0
+    reported_general_beds: int = 100
     availability_status: str
     google_maps_url: str
     reasoning: str

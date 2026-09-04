@@ -25,7 +25,7 @@ async def get_events(request: Request):
                 severity=ev.get("severity", "MEDIUM"),
                 status=ev.get("status", "ACTIVE"),
                 data_state=ev.get("data_state", "LIVE"),
-                source_name=ev.get("source_name", "INDTIX API"),
+                source_name=ev.get("source_name", "Eventbrite"),
                 source_url=ev.get("source_url"),
                 source_timestamp="2026-09-01T15:00:00Z",
                 impact_scores={

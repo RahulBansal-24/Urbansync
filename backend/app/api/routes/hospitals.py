@@ -68,6 +68,7 @@ async def rank_hospitals(req: HospitalRankRequest, request: Request):
             has_emergency=h.get("has_emergency", True),
             has_trauma_center=h.get("has_trauma_center", False),
             reported_icu_beds=h.get("reported_icu_beds", 10),
+            reported_general_beds=h.get("reported_general_beds", 100),
             availability_status=h.get("availability_status", "AVAILABLE"),
             google_maps_url=h["google_maps_url"],
             reasoning=h["reasoning"],
