@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Search, MapPin, Activity, Clock } from 'lucide-react';
 import { SystemStatusResponse } from '../../types/city';
+import { DELHI_LOCATIONS, LocationItem } from '../routing/SmartRoutePanel';
 
 interface TopBarProps {
   onSearchSelect?: (coords: [number, number], title: string) => void;
@@ -12,6 +13,7 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ onSearchSelect, systemHealth, onOpenHealthModal }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [delhiTime, setDelhiTime] = useState<string>('');
 
   // Live Delhi clock ticker
@@ -31,29 +33,30 @@ export const TopBar: React.FC<TopBarProps> = ({ onSearchSelect, systemHealth, on
     return () => clearInterval(interval);
   }, []);
 
-  // Quick Delhi locations search dictionary
-  const QUICK_PLACES: Record<string, [number, number]> = {
-    'connaught place': [77.2197, 28.6315],
-    'igi airport': [77.1000, 28.5562],
-    'aiims': [77.2090, 28.5672],
-    'jln stadium': [77.2343, 28.5828],
-    'pragati maidan': [77.2415, 28.6183],
-    'india gate': [77.2295, 28.6129],
-    'dhaula kuan': [77.1610, 28.5910],
-    'ito': [77.2427, 28.6379]
+  const filteredSuggestions = DELHI_LOCATIONS.filter((loc) =>
+    loc.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSelectLocation = (loc: LocationItem) => {
+    setSearchQuery(loc.name);
+    setShowSuggestions(false);
+    if (onSearchSelect) {
+      onSearchSelect(loc.coords, loc.name);
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    const q = searchQuery.toLowerCase().trim();
-    const match = Object.keys(QUICK_PLACES).find(key => key.includes(q));
-    if (match && onSearchSelect) {
-      onSearchSelect(QUICK_PLACES[match], match.toUpperCase());
+    const match = DELHI_LOCATIONS.find((loc) =>
+      loc.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
+    );
+    if (match) {
+      handleSelectLocation(match);
     } else if (onSearchSelect) {
-      // Default to Connaught Place if unlisted
-      onSearchSelect([77.2197, 28.6315], searchQuery.toUpperCase());
+      onSearchSelect([77.2197, 28.6315], searchQuery.trim());
+      setShowSuggestions(false);
     }
   };
 
@@ -89,10 +92,28 @@ export const TopBar: React.FC<TopBarProps> = ({ onSearchSelect, systemHealth, on
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search Delhi places, roads, hospitals, venues..."
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            placeholder="Search 275+ Delhi NCR locations, hubs, venues..."
             className="w-full bg-dark-card border border-dark-border rounded-lg pl-9 pr-4 py-1.5 text-xs text-white placeholder-dark-muted focus:outline-none focus:border-cyan-glow focus:ring-1 focus:ring-cyan-glow transition-all"
           />
+          {showSuggestions && searchQuery.trim().length > 0 && filteredSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-dark-panel border border-cyan-glow/40 rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto divide-y divide-dark-border">
+              {filteredSuggestions.map((loc) => (
+                <div
+                  key={loc.name}
+                  onClick={() => handleSelectLocation(loc)}
+                  className="p-2 text-xs text-slate-200 hover:bg-cyan-brand/20 hover:text-cyan-glow cursor-pointer transition-colors flex items-center space-x-2"
+                >
+                  <span className="text-red-500 font-bold">📍</span>
+                  <span className="truncate">{loc.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </form>
       </div>
 

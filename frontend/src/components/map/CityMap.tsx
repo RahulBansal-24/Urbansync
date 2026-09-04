@@ -32,6 +32,7 @@ interface CityMapProps {
   smartRouteResult: SmartRouteResponse | null;
   selectedRouteCandidateId?: string;
   simulationResult: SimulationResult | null;
+  searchedLocation?: { name: string; coords: [number, number] } | null;
   onHoverFeature: (feature: GeoJsonFeature | null) => void;
   onClickFeature: (feature: GeoJsonFeature) => void;
 }
@@ -47,6 +48,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
   smartRouteResult,
   selectedRouteCandidateId,
   simulationResult,
+  searchedLocation,
   onHoverFeature,
   onClickFeature
 }, ref) => {
@@ -54,6 +56,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const searchMarkerRef = useRef<maplibregl.Marker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [is3DPitched, setIs3DPitched] = useState(true);
 
@@ -552,6 +555,51 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
       });
     }
   }, [simulationResult, mapLoaded]);
+
+  // Update Searched Location Red Pin Needle Marker Overlay
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.remove();
+      searchMarkerRef.current = null;
+    }
+
+    if (!searchedLocation || !searchedLocation.coords) return;
+
+    const [lng, lat] = searchedLocation.coords;
+    if (isNaN(lng) || isNaN(lat)) return;
+
+    // Create classic Google Maps Red Drop Pin Needle HTML element
+    const el = document.createElement('div');
+    el.className = 'custom-search-pin cursor-pointer transition-transform hover:scale-125';
+    el.innerHTML = `
+      <div class="relative flex flex-col items-center -translate-y-full">
+        <div class="w-8 h-8 rounded-full bg-red-600 border-2 border-white text-white font-extrabold text-sm flex items-center justify-center shadow-glow-red animate-pulse">
+          📍
+        </div>
+        <div class="w-1 h-3 bg-red-600 shadow-md"></div>
+        <div class="w-3 h-1 bg-black/40 rounded-full blur-[1px]"></div>
+      </div>
+    `;
+
+    const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      .setLngLat([lng, lat])
+      .addTo(map.current);
+
+    searchMarkerRef.current = marker;
+
+    try {
+      map.current.flyTo({
+        center: [lng, lat],
+        zoom: 14.5,
+        duration: 1000,
+        essential: true
+      });
+    } catch (e) {
+      console.warn('[UrbanSync Map] Could not fly to searched location:', e);
+    }
+  }, [searchedLocation, mapLoaded]);
 
   // Update Category HTML Markers
   useEffect(() => {

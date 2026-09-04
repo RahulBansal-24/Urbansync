@@ -56,6 +56,7 @@ export default function Home() {
   // Panel & Hover Interaction States
   const [hoveredFeature, setHoveredFeature] = useState<GeoJsonFeature | null>(null);
   const [lockedFeature, setLockedFeature] = useState<GeoJsonFeature | null>(null);
+  const [searchedLocation, setSearchedLocation] = useState<{ name: string; coords: [number, number] } | null>(null);
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
 
   // Initial Data Fetching ONCE on Page Mount (No background polling loops)
@@ -101,11 +102,43 @@ export default function Home() {
   // Category Switch Handler
   const handleSelectCategory = (cat: LayerCategory) => {
     setActiveCategory(cat);
+    setSearchedLocation(null);
+    setLockedFeature(null);
     if (cat !== 'SMART ROUTE') {
       setSmartRouteResult(null);
       setSelectedRouteCandidateId('');
     }
     if (cat !== 'SIMULATION') setSimulationResult(null);
+  };
+
+  const handleSearchSelect = (coords: [number, number], title: string) => {
+    setSearchedLocation({ name: title, coords });
+    
+    // Construct GeoJsonFeature for DetailPanel
+    const searchFeat: GeoJsonFeature = {
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: coords
+      },
+      properties: {
+        id: `SEARCH-${title.replace(/\s+/g, '_')}`,
+        type: 'SEARCHED_LOCATION',
+        title: title,
+        description: `Major Delhi NCR spatial location node in ${title}. Coordinates: ${coords[1].toFixed(4)}°N, ${coords[0].toFixed(4)}°E. Grounded from verified Delhi NCR location index.`,
+        severity: 'LOW',
+        status: 'ACTIVE',
+        data_state: 'STATIC',
+        source_name: 'Delhi NCR Location Index',
+        source_url: `https://www.google.com/maps/search/?api=1&query=${coords[1]},${coords[0]}`,
+        extra_metadata: {
+          coordinates: `${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`,
+          google_maps_url: `https://www.google.com/maps/search/?api=1&query=${coords[1]},${coords[0]}`
+        }
+      }
+    };
+    
+    setLockedFeature(searchFeat);
   };
 
   const selectedFeature = lockedFeature || hoveredFeature;
@@ -114,6 +147,7 @@ export default function Home() {
     <main className="relative w-screen h-screen overflow-hidden bg-dark-bg text-dark-text select-none">
       {/* Top Command Center Header */}
       <TopBar
+        onSearchSelect={handleSearchSelect}
         systemHealth={systemHealth}
         onOpenHealthModal={() => setIsHealthModalOpen(true)}
       />
@@ -137,6 +171,7 @@ export default function Home() {
         smartRouteResult={smartRouteResult}
         selectedRouteCandidateId={selectedRouteCandidateId}
         simulationResult={simulationResult}
+        searchedLocation={searchedLocation}
         onHoverFeature={(feat) => {
           if (!lockedFeature) setHoveredFeature(feat);
         }}
@@ -205,6 +240,7 @@ export default function Home() {
           onClose={() => {
             setLockedFeature(null);
             setHoveredFeature(null);
+            setSearchedLocation(null);
           }}
           isLocked={!!lockedFeature}
         />
