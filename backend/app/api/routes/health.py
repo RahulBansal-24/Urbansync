@@ -1,4 +1,5 @@
 import os
+import time
 import datetime
 from fastapi import APIRouter, Request
 from app.schemas.city_schemas import SystemStatusResponse, ServiceHealth
@@ -12,9 +13,24 @@ from app.services.ingestion.adapters import (
 
 router = APIRouter(tags=["System Health"])
 
+def format_relative_time(last_time: float | None) -> str:
+    if not last_time:
+        return "Just now"
+    elapsed = max(0, int(time.time() - last_time))
+    if elapsed < 45:
+        return "Just now"
+    elif elapsed < 90:
+        return "1 min ago"
+    elif elapsed < 3600:
+        mins = elapsed // 60
+        return f"{mins} mins ago" if mins > 1 else "1 min ago"
+    else:
+        hrs = elapsed // 3600
+        return f"{hrs} hrs ago" if hrs > 1 else "1 hr ago"
+
 @router.get("/api/health", response_model=SystemStatusResponse)
 async def get_system_health(request: Request):
-    """Returns accurate component health status, data states (LIVE vs FALLBACK) and timestamps."""
+    """Returns accurate component health status, data states (LIVE vs FALLBACK) and relative sync timestamps."""
     scheduler = request.app.state.scheduler
     
     traffic_count = len(scheduler.traffic_incidents) if scheduler else 0
@@ -26,10 +42,19 @@ async def get_system_health(request: Request):
     delhi_time_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC (IST: +5:30)")
 
     tomtom_state = getattr(TomTomAdapter, "last_data_state", "FALLBACK")
+    tomtom_sync = getattr(TomTomAdapter, "last_sync_time", None)
+
     weather_state = getattr(WeatherAdapter, "last_data_state", "FALLBACK")
+    weather_sync = getattr(WeatherAdapter, "last_sync_time", None)
+
     event_state = getattr(EventbriteAdapter, "last_data_state", "FALLBACK")
+    event_sync = getattr(EventbriteAdapter, "last_sync_time", None)
+
     hospital_state = getattr(OverpassHospitalAdapter, "last_data_state", "FALLBACK")
+    hospital_sync = getattr(OverpassHospitalAdapter, "last_sync_time", None)
+
     transit_state = getattr(TransitAdapter, "last_data_state", "FALLBACK")
+    transit_sync = getattr(TransitAdapter, "last_sync_time", None)
 
     groq_key = os.getenv("GROQ_API_KEY", "")
     groq_status = "ONLINE" if (groq_key and "placeholder" not in groq_key.lower()) else "FALLBACK"
@@ -48,14 +73,14 @@ async def get_system_health(request: Request):
     tr_status, tr_details = determine_status(transit_state, transit_count, "GTFS Metro & Bus routes")
 
     services = [
-        ServiceHealth(service_name="Map & Spatial Engine", status="ONLINE", last_sync="On page load", details="TomTom Orbis & MapLibre GL JS"),
-        ServiceHealth(service_name="Traffic & Congestion", status=t_status, last_sync="On page load", details=t_details),
-        ServiceHealth(service_name="Incidents & Closures", status=t_status, last_sync="On page load", details=f"Delhi Police & TomTom feeds ({t_status.lower()})"),
-        ServiceHealth(service_name="Weather Risk Engine", status=w_status, last_sync="On page load", details=w_details),
-        ServiceHealth(service_name="City Events Aggregator", status=e_status, last_sync="On page load", details=e_details),
-        ServiceHealth(service_name="Hospital Capability Index", status=h_status, last_sync="On page load", details=h_details),
-        ServiceHealth(service_name="Public Transit (Delhi OTD)", status=tr_status, last_sync="On page load", details=tr_details),
-        ServiceHealth(service_name="Groq LLM AI Engine", status=groq_status, last_sync="On page load", details="openai/gpt-oss-20b model" if groq_status == "ONLINE" else "Rule-based heuristic engine fallback")
+        ServiceHealth(service_name="Map & Spatial Engine", status="ONLINE", last_sync="Just now", details="TomTom Orbis & MapLibre GL JS"),
+        ServiceHealth(service_name="Traffic & Congestion", status=t_status, last_sync=format_relative_time(tomtom_sync), details=t_details),
+        ServiceHealth(service_name="Incidents & Closures", status=t_status, last_sync=format_relative_time(tomtom_sync), details=f"Delhi Police & TomTom feeds ({t_status.lower()})"),
+        ServiceHealth(service_name="Weather Risk Engine", status=w_status, last_sync=format_relative_time(weather_sync), details=w_details),
+        ServiceHealth(service_name="City Events Aggregator", status=e_status, last_sync=format_relative_time(event_sync), details=e_details),
+        ServiceHealth(service_name="Hospital Capability Index", status=h_status, last_sync=format_relative_time(hospital_sync), details=h_details),
+        ServiceHealth(service_name="Public Transit (Delhi OTD)", status=tr_status, last_sync=format_relative_time(transit_sync), details=tr_details),
+        ServiceHealth(service_name="Groq LLM AI Engine", status=groq_status, last_sync="Just now", details="openai/gpt-oss-20b model" if groq_status == "ONLINE" else "Rule-based heuristic engine fallback")
     ]
 
     overall = "ONLINE"

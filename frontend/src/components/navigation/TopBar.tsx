@@ -64,9 +64,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onSearchSelect, systemHealth, on
     <header className="absolute top-0 left-0 right-0 z-40 h-16 bg-dark-bg/90 backdrop-blur-md border-b border-dark-border px-4 flex items-center justify-between text-dark-text shadow-panel-dark">
       {/* Brand Logo & Tagline */}
       <div className="flex items-center space-x-3">
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-brand to-purple-brand flex items-center justify-center shadow-glow-cyan">
-          <Shield className="w-5 h-5 text-black stroke-[2.5]" />
-        </div>
+        <img
+          src="/logo.png"
+          alt="UrbanSync Logo"
+          className="w-9 h-9 object-contain drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]"
+        />
         <div>
           <span className="font-mono font-bold tracking-wider text-lg text-white">URBANSYNC</span>
           <p className="text-[11px] text-dark-muted hidden sm:block">AI-Powered Smart City Digital Twin</p>

@@ -66,9 +66,11 @@ OPEN_METEO_ENABLED = os.getenv("OPEN_METEO_ENABLED", "true").lower() == "true"
 class TomTomAdapter:
     """Ingests real-time traffic incidents around Delhi bounding box using TomTom Traffic Incidents API."""
     last_data_state = "FALLBACK"
+    last_sync_time = None
     
     @staticmethod
     async def fetch_incidents() -> List[Dict[str, Any]]:
+        TomTomAdapter.last_sync_time = time.time()
         if not TOMTOM_API_KEY or "placeholder" in TOMTOM_API_KEY.lower():
             logger.info("[TomTom Adapter] TOMTOM_API_KEY placeholder or not set. Utilizing verified baseline live data.")
             TomTomAdapter.last_data_state = "FALLBACK"
@@ -195,9 +197,11 @@ class TomTomAdapter:
 class WeatherAdapter:
     """Ingests multi-grid live telemetry from Open-Meteo & WeatherAPI across Delhi NCR sub-regions."""
     last_data_state = "FALLBACK"
+    last_sync_time = None
     
     @staticmethod
     async def fetch_weather_cells() -> List[Dict[str, Any]]:
+        WeatherAdapter.last_sync_time = time.time()
         lats = [c["latitude"] for c in SEED_WEATHER_CELLS]
         lons = [c["longitude"] for c in SEED_WEATHER_CELLS]
         lat_str = ",".join(map(str, lats))
@@ -250,13 +254,14 @@ class WeatherAdapter:
 class EventbriteAdapter:
     """Ingests live public event data for Delhi NCR region from Eventbrite public listing pages."""
     last_data_state = "FALLBACK"
+    last_sync_time = None
 
     EVENTBRITE_URLS = [
         "https://www.eventbrite.com/d/india--delhi/events/",
         "https://www.eventbrite.com/d/india--new-delhi/events/",
         "https://www.eventbrite.com/d/india--delhi-ncr/events/"
     ]
-    
+
     KNOWN_VENUES = {
         "pragati maidan": (28.6183, 77.2415),
         "bharat mandapam": (28.6183, 77.2415),
@@ -299,6 +304,7 @@ class EventbriteAdapter:
 
     @staticmethod
     async def fetch_events() -> List[Dict[str, Any]]:
+        EventbriteAdapter.last_sync_time = time.time()
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
@@ -420,9 +426,11 @@ class EventbriteAdapter:
 class OverpassHospitalAdapter:
     """Ingests Delhi hospital data from OpenStreetMap via public Overpass API."""
     last_data_state = "FALLBACK"
+    last_sync_time = None
 
     @staticmethod
     async def fetch_hospitals() -> List[Dict[str, Any]]:
+        OverpassHospitalAdapter.last_sync_time = time.time()
         overpass_query = """
         [out:json][timeout:15];
         (
@@ -538,11 +546,13 @@ from app.services.ingestion.transit_data import generate_delhi_transit_dataset
 class TransitAdapter:
     """Provides 300+ Metro stations, DTC Bus stops, and LineString route geometries for Delhi NCR."""
     last_data_state = "FALLBACK"
+    last_sync_time = None
 
     @staticmethod
     async def fetch_transit_stops() -> List[Dict[str, Any]]:
+        TransitAdapter.last_sync_time = time.time()
         if DELHI_OTD_REALTIME_KEY and "placeholder" not in DELHI_OTD_REALTIME_KEY.lower():
-            TransitAdapter.last_data_state = "LIVE"
+            TransitAdapter.last_status = "LIVE"
         else:
-            TransitAdapter.last_data_state = "FALLBACK"
+            TransitAdapter.last_status = "FALLBACK"
         return generate_delhi_transit_dataset()

@@ -55,15 +55,6 @@ export const SystemStatusModal: React.FC<SystemStatusModalProps> = ({ isOpen, on
             ))}
           </div>
         </div>
-
-        <div className="pt-3 border-t border-dark-border flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-dark-card hover:bg-dark-hover border border-dark-border text-xs text-white"
-          >
-            Close Status
-          </button>
-        </div>
       </div>
     </div>
   );
