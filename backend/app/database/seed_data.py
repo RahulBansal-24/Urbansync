@@ -134,82 +134,244 @@ SEED_ROAD_BLOCKS = [
 SEED_WEATHER_CELLS = [
     {
         "id": "WTH-DEL-CELL-1",
-        "grid_cell_id": "CELL_SOUTH_DELHI",
-        "region_name": "South Delhi & AIIMS Corridor",
-        "latitude": 28.5600,
-        "longitude": 77.2100,
+        "grid_cell_id": "CELL_SW_NCR",
+        "region_name": "Gurgaon & South-West NCR Corridor",
+        "latitude": 28.3500,
+        "longitude": 76.8500,
         "bounds_geojson": {
             "type": "Polygon",
             "coordinates": [[
-                [77.1700, 28.5200],
-                [77.2500, 28.5200],
-                [77.2500, 28.6000],
-                [77.1700, 28.6000],
-                [77.1700, 28.5200]
+                [76.7000, 28.2000],
+                [77.0000, 28.2000],
+                [77.0000, 28.5000],
+                [76.7000, 28.5000],
+                [76.7000, 28.2000]
             ]]
         },
-        "temperature_c": 31.5,
-        "humidity_pct": 78.0,
-        "precipitation_mm": 18.5,
-        "rain_probability_pct": 82.0,
-        "wind_kph": 24.0,
-        "visibility_km": 4.5,
+        "temperature_c": 33.5,
+        "humidity_pct": 72.0,
+        "precipitation_mm": 16.5,
+        "rain_probability_pct": 78.0,
+        "wind_kph": 28.0,
+        "visibility_km": 4.0,
         "condition_text": "Heavy Rain Shower",
-        "weather_traffic_risk": 68.0,
+        "weather_traffic_risk": 65.0,
         "source_name": "WeatherAPI.com / Open-Meteo",
         "data_state": "LIVE"
     },
     {
         "id": "WTH-DEL-CELL-2",
-        "grid_cell_id": "CELL_CENTRAL_DELHI",
-        "region_name": "Central Delhi & Connaught Place",
-        "latitude": 28.6300,
-        "longitude": 77.2200,
+        "grid_cell_id": "CELL_SOUTH_NCR",
+        "region_name": "Faridabad & South Delhi Border",
+        "latitude": 28.3500,
+        "longitude": 77.1500,
         "bounds_geojson": {
             "type": "Polygon",
             "coordinates": [[
-                [77.1800, 28.6000],
-                [77.2600, 28.6000],
-                [77.2600, 28.6600],
-                [77.1800, 28.6600],
-                [77.1800, 28.6000]
+                [77.0000, 28.2000],
+                [77.3000, 28.2000],
+                [77.3000, 28.5000],
+                [77.0000, 28.5000],
+                [77.0000, 28.2000]
             ]]
         },
-        "temperature_c": 32.0,
-        "humidity_pct": 74.0,
-        "precipitation_mm": 6.0,
-        "rain_probability_pct": 60.0,
-        "wind_kph": 18.0,
-        "visibility_km": 6.0,
+        "temperature_c": 32.5,
+        "humidity_pct": 76.0,
+        "precipitation_mm": 12.0,
+        "rain_probability_pct": 70.0,
+        "wind_kph": 22.0,
+        "visibility_km": 5.0,
         "condition_text": "Moderate Rain",
-        "weather_traffic_risk": 42.0,
+        "weather_traffic_risk": 48.0,
         "source_name": "WeatherAPI.com / Open-Meteo",
         "data_state": "LIVE"
     },
     {
         "id": "WTH-DEL-CELL-3",
-        "grid_cell_id": "CELL_WEST_DELHI",
-        "region_name": "West Delhi & Airport Corridor",
-        "latitude": 28.5700,
-        "longitude": 77.1100,
+        "grid_cell_id": "CELL_SE_NCR",
+        "region_name": "Greater Noida & SE Expressway Zone",
+        "latitude": 28.3500,
+        "longitude": 77.4500,
         "bounds_geojson": {
             "type": "Polygon",
             "coordinates": [[
-                [77.0600, 28.5200],
-                [77.1700, 28.5200],
-                [77.1700, 28.6200],
-                [77.0600, 28.6200],
-                [77.0600, 28.5200]
+                [77.3000, 28.2000],
+                [77.6000, 28.2000],
+                [77.6000, 28.5000],
+                [77.3000, 28.5000],
+                [77.3000, 28.2000]
+            ]]
+        },
+        "temperature_c": 31.0,
+        "humidity_pct": 82.0,
+        "precipitation_mm": 22.0,
+        "rain_probability_pct": 88.0,
+        "wind_kph": 32.0,
+        "visibility_km": 2.5,
+        "condition_text": "Torrential Rain & Thunderstorm",
+        "weather_traffic_risk": 82.0,
+        "source_name": "WeatherAPI.com / Open-Meteo",
+        "data_state": "LIVE"
+    },
+    {
+        "id": "WTH-DEL-CELL-4",
+        "grid_cell_id": "CELL_WEST_DELHI",
+        "region_name": "West Delhi, Dwarka & Airport Zone",
+        "latitude": 28.5750,
+        "longitude": 76.9100,
+        "bounds_geojson": {
+            "type": "Polygon",
+            "coordinates": [[
+                [76.7000, 28.5000],
+                [77.1200, 28.5000],
+                [77.1200, 28.6500],
+                [76.7000, 28.6500],
+                [76.7000, 28.5000]
             ]]
         },
         "temperature_c": 33.0,
         "humidity_pct": 68.0,
-        "precipitation_mm": 1.2,
+        "precipitation_mm": 2.5,
         "rain_probability_pct": 35.0,
         "wind_kph": 14.0,
-        "visibility_km": 8.0,
+        "visibility_km": 7.0,
         "condition_text": "Partly Cloudy",
-        "weather_traffic_risk": 18.0,
+        "weather_traffic_risk": 22.0,
+        "source_name": "WeatherAPI.com / Open-Meteo",
+        "data_state": "LIVE"
+    },
+    {
+        "id": "WTH-DEL-CELL-5",
+        "grid_cell_id": "CELL_CENTRAL_DELHI",
+        "region_name": "Central & South Delhi Hub (CP & Rajpath)",
+        "latitude": 28.5750,
+        "longitude": 77.1900,
+        "bounds_geojson": {
+            "type": "Polygon",
+            "coordinates": [[
+                [77.1200, 28.5000],
+                [77.2600, 28.5000],
+                [77.2600, 28.6500],
+                [77.1200, 28.6500],
+                [77.1200, 28.5000]
+            ]]
+        },
+        "temperature_c": 32.0,
+        "humidity_pct": 74.0,
+        "precipitation_mm": 8.0,
+        "rain_probability_pct": 65.0,
+        "wind_kph": 18.0,
+        "visibility_km": 5.5,
+        "condition_text": "Moderate Rain Showers",
+        "weather_traffic_risk": 45.0,
+        "source_name": "WeatherAPI.com / Open-Meteo",
+        "data_state": "LIVE"
+    },
+    {
+        "id": "WTH-DEL-CELL-6",
+        "grid_cell_id": "CELL_EAST_NCR",
+        "region_name": "East Delhi, Noida & Ghaziabad Zone",
+        "latitude": 28.5750,
+        "longitude": 77.4300,
+        "bounds_geojson": {
+            "type": "Polygon",
+            "coordinates": [[
+                [77.2600, 28.5000],
+                [77.6000, 28.5000],
+                [77.6000, 28.6500],
+                [77.2600, 28.6500],
+                [77.2600, 28.5000]
+            ]]
+        },
+        "temperature_c": 31.8,
+        "humidity_pct": 79.0,
+        "precipitation_mm": 14.0,
+        "rain_probability_pct": 75.0,
+        "wind_kph": 24.0,
+        "visibility_km": 4.0,
+        "condition_text": "Heavy Rain & Waterlogging",
+        "weather_traffic_risk": 62.0,
+        "source_name": "WeatherAPI.com / Open-Meteo",
+        "data_state": "LIVE"
+    },
+    {
+        "id": "WTH-DEL-CELL-7",
+        "grid_cell_id": "CELL_NW_NCR",
+        "region_name": "North-West Delhi & Rohini Belt",
+        "latitude": 28.8750,
+        "longitude": 76.8750,
+        "bounds_geojson": {
+            "type": "Polygon",
+            "coordinates": [[
+                [76.7000, 28.6500],
+                [77.0500, 28.6500],
+                [77.0500, 29.1000],
+                [76.7000, 28.6500],
+                [76.7000, 28.6500]
+            ]]
+        },
+        "temperature_c": 30.5,
+        "humidity_pct": 85.0,
+        "precipitation_mm": 0.5,
+        "rain_probability_pct": 40.0,
+        "wind_kph": 12.0,
+        "visibility_km": 1.8,
+        "condition_text": "Dense Smog & Fog Hazard",
+        "weather_traffic_risk": 55.0,
+        "source_name": "WeatherAPI.com / Open-Meteo",
+        "data_state": "LIVE"
+    },
+    {
+        "id": "WTH-DEL-CELL-8",
+        "grid_cell_id": "CELL_NORTH_DELHI",
+        "region_name": "North Delhi & DU Campus Belt",
+        "latitude": 28.8750,
+        "longitude": 77.1650,
+        "bounds_geojson": {
+            "type": "Polygon",
+            "coordinates": [[
+                [77.0500, 28.6500],
+                [77.2800, 28.6500],
+                [77.2800, 29.1000],
+                [77.0500, 29.1000],
+                [77.0500, 28.6500]
+            ]]
+        },
+        "temperature_c": 32.2,
+        "humidity_pct": 71.0,
+        "precipitation_mm": 4.0,
+        "rain_probability_pct": 50.0,
+        "wind_kph": 16.0,
+        "visibility_km": 5.0,
+        "condition_text": "Light Rain & Haze",
+        "weather_traffic_risk": 32.0,
+        "source_name": "WeatherAPI.com / Open-Meteo",
+        "data_state": "LIVE"
+    },
+    {
+        "id": "WTH-DEL-CELL-9",
+        "grid_cell_id": "CELL_NE_NCR",
+        "region_name": "North-East NCR & Trans-Yamuna Zone",
+        "latitude": 28.8750,
+        "longitude": 77.4400,
+        "bounds_geojson": {
+            "type": "Polygon",
+            "coordinates": [[
+                [77.2800, 28.6500],
+                [77.6000, 28.6500],
+                [77.6000, 29.1000],
+                [77.2800, 29.1000],
+                [77.2800, 28.6500]
+            ]]
+        },
+        "temperature_c": 31.5,
+        "humidity_pct": 78.0,
+        "precipitation_mm": 11.0,
+        "rain_probability_pct": 68.0,
+        "wind_kph": 20.0,
+        "visibility_km": 3.8,
+        "condition_text": "Moderate Rain & Fog Haze",
+        "weather_traffic_risk": 50.0,
         "source_name": "WeatherAPI.com / Open-Meteo",
         "data_state": "LIVE"
     }

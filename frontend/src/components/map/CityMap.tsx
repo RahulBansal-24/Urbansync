@@ -125,11 +125,19 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
     console.log(`[UrbanSync Map] Initializing MapLibre GL JS with ${hasValidKey ? 'TomTom Night Map API' : 'CartoDB Dark Vector Basemap'}`);
 
     try {
+      // Constrain map view strictly to Delhi NCR region
+      const DELHI_NCR_BOUNDS: maplibregl.LngLatBoundsLike = [
+        [76.70, 28.20], // Southwest [Longitude, Latitude]
+        [77.60, 29.10]  // Northeast [Longitude, Latitude]
+      ];
+
       const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
         style: styleObject,
         center: [77.2090, 28.6139], // Delhi Center [Longitude, Latitude]
         zoom: 11.5,
+        minZoom: 10,
+        maxBounds: DELHI_NCR_BOUNDS,
         pitch: 45,
         bearing: -15,
         antialias: true
@@ -202,13 +210,53 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
         type: 'fill',
         source: sourceId,
         layout: {
-          visibility: ['WEATHER', 'ALL'].includes(activeCategory) ? 'visible' : 'none'
+          visibility: activeCategory === 'WEATHER' ? 'visible' : 'none'
         },
         paint: {
-          'fill-color': '#3B82F6',
-          'fill-opacity': 0.18,
-          'fill-outline-color': '#00F0FF'
+          'fill-color': [
+            'coalesce',
+            ['get', 'color_hex', ['get', 'extra_metadata']],
+            ['get', 'color_hex'],
+            '#3B82F6'
+          ],
+          'fill-opacity': 0.32,
+          'fill-outline-color': [
+            'coalesce',
+            ['get', 'color_hex', ['get', 'extra_metadata']],
+            ['get', 'color_hex'],
+            '#00F0FF'
+          ]
         }
+      });
+
+      // Attach click and cursor pointer handlers to weather fill layer
+      map.current.on('click', layerId, (e) => {
+        if (e.features && e.features.length > 0) {
+          const rawFeat = e.features[0];
+          const props = { ...(rawFeat.properties || {}) };
+
+          if (typeof props.extra_metadata === 'string') {
+            try { props.extra_metadata = JSON.parse(props.extra_metadata); } catch (err) {}
+          }
+          if (typeof props.impact_scores === 'string') {
+            try { props.impact_scores = JSON.parse(props.impact_scores); } catch (err) {}
+          }
+
+          const feat: GeoJsonFeature = {
+            type: 'Feature',
+            geometry: rawFeat.geometry as any,
+            properties: props as any
+          };
+          onClickFeature(feat);
+        }
+      });
+
+      map.current.on('mouseenter', layerId, () => {
+        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.current.on('mouseleave', layerId, () => {
+        if (map.current) map.current.getCanvas().style.cursor = '';
       });
     }
 
@@ -216,7 +264,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
       map.current.setLayoutProperty(
         layerId,
         'visibility',
-        ['WEATHER', 'ALL'].includes(activeCategory) ? 'visible' : 'none'
+        activeCategory === 'WEATHER' ? 'visible' : 'none'
       );
     }
   }, [weatherGrid, activeCategory, mapLoaded]);
@@ -305,8 +353,19 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
     if (['ALL', 'EVENTS'].includes(activeCategory) && events) {
       allFeatures.push(...events.features);
     }
-    if (['ALL', 'TRAFFIC', 'ACCIDENTS'].includes(activeCategory) && trafficIncidents) {
-      allFeatures.push(...trafficIncidents.features);
+    if (trafficIncidents) {
+      const filteredIncidents = trafficIncidents.features.filter((feat) => {
+        const type = feat.properties.type;
+        if (activeCategory === 'ALL') return true;
+        if (activeCategory === 'TRAFFIC') return type === 'TRAFFIC' || type === 'CONGESTION';
+        if (activeCategory === 'ACCIDENTS') return type === 'ACCIDENT';
+        if (activeCategory === 'ROAD BLOCKS') return type === 'ROAD_BLOCK' || type === 'ROAD_WORK' || type === 'LANE_CLOSURE';
+        return false;
+      });
+      allFeatures.push(...filteredIncidents);
+    }
+    if (['ALL', 'ROAD BLOCKS'].includes(activeCategory) && roadBlocks) {
+      allFeatures.push(...roadBlocks.features);
     }
     if (['ALL', 'HOSPITALS'].includes(activeCategory) && hospitals) {
       allFeatures.push(...hospitals.features);
@@ -319,8 +378,23 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
 
     allFeatures.forEach((feat) => {
       const { type } = feat.properties;
-      const coords = feat.geometry.coordinates;
-      if (!coords || coords.length < 2) return;
+      const coords = feat.geometry?.coordinates;
+      if (!coords || coords.length === 0) return;
+
+      let lng: number;
+      let lat: number;
+
+      if (Array.isArray(coords[0])) {
+        // Geometry is LineString or MultiPoint
+        lng = Number(coords[0][0]);
+        lat = Number(coords[0][1]);
+      } else {
+        // Geometry is Point
+        lng = Number(coords[0]);
+        lat = Number(coords[1]);
+      }
+
+      if (isNaN(lng) || isNaN(lat)) return;
 
       const el = document.createElement('div');
       el.className = 'custom-city-marker cursor-pointer transition-transform hover:scale-125';
@@ -334,8 +408,11 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
       } else if (type === 'ACCIDENT') {
         colorBg = 'bg-red-600 border-red-400 pulse-marker-red shadow-glow-red';
         iconSymbol = '⚠';
-      } else if (type === 'TRAFFIC') {
-        colorBg = 'bg-amber-500 border-amber-300';
+      } else if (type === 'ROAD_BLOCK' || type === 'ROAD_WORK' || type === 'LANE_CLOSURE') {
+        colorBg = 'bg-amber-600 border-amber-300 shadow-glow-orange';
+        iconSymbol = '🚧';
+      } else if (type === 'TRAFFIC' || type === 'CONGESTION') {
+        colorBg = 'bg-yellow-500 border-yellow-300';
         iconSymbol = '🚗';
       } else if (type === 'HOSPITAL') {
         colorBg = 'bg-cyan-500 border-cyan-300 shadow-glow-cyan';
@@ -356,7 +433,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
       el.addEventListener('click', () => onClickFeature(feat));
 
       const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([coords[0], coords[1]])
+        .setLngLat([lng, lat])
         .addTo(map.current!);
 
       markersRef.current.push(marker);
@@ -365,6 +442,7 @@ export const CityMap = forwardRef<CityMapRef, CityMapProps>(({
     activeCategory,
     events,
     trafficIncidents,
+    roadBlocks,
     hospitals,
     transitStops,
     mapLoaded

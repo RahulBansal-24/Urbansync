@@ -1,4 +1,5 @@
 import os
+import math
 import time
 import logging
 import aiohttp
@@ -6,6 +7,50 @@ from typing import List, Dict, Any
 from app.database.seed_data import SEED_EVENTS, SEED_TRAFFIC_INCIDENTS, SEED_WEATHER_CELLS, SEED_HOSPITALS, SEED_TRANSIT_STOPS
 
 logger = logging.getLogger("urbansync.adapters")
+
+def calculate_geodesic_length(coords: Any) -> float:
+    """Calculates cumulative length in meters from a list of [lon, lat] coordinates."""
+    if not coords or not isinstance(coords, list) or len(coords) < 2:
+        return 0.0
+    flat_coords = coords if isinstance(coords[0], list) else [coords]
+    if len(flat_coords) < 2:
+        return 0.0
+
+    length_m = 0.0
+    for i in range(len(flat_coords) - 1):
+        c1, c2 = flat_coords[i], flat_coords[i + 1]
+        if isinstance(c1, list) and isinstance(c2, list) and len(c1) >= 2 and len(c2) >= 2:
+            lon1, lat1 = float(c1[0]), float(c1[1])
+            lon2, lat2 = float(c2[0]), float(c2[1])
+            dlat = math.radians(lat2 - lat1)
+            dlon = math.radians(lon2 - lon1)
+            a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+            length_m += 2 * 6371000 * math.asin(math.sqrt(a))
+    return length_m
+
+def infer_delhi_road_name(lat: float, lon: float, from_loc: str = "", to_loc: str = "") -> str:
+    """Derives specific Delhi road corridor names from coordinates or location properties."""
+    if from_loc and to_loc:
+        return f"{from_loc} ➔ {to_loc}"
+    elif from_loc:
+        return from_loc
+
+    if 28.53 <= lat <= 28.60 and 77.10 <= lon <= 77.18:
+        return "NH-48 Corridor (Airport / Dhaula Kuan)"
+    elif 28.54 <= lat <= 28.59 and 77.18 <= lon <= 77.25:
+        return "South Ring Road (AIIMS / Moolchand)"
+    elif 28.61 <= lat <= 28.65 and 77.20 <= lon <= 77.26:
+        return "Central Expressway (ITO / Mathura Road)"
+    elif 28.68 <= lat <= 28.75 and 77.10 <= lon <= 77.22:
+        return "Outer Ring Road (North Delhi / Pitampura)"
+    elif 28.56 <= lat <= 28.64 and 77.05 <= lon <= 77.12:
+        return "Dwarka Expressway / Najafgarh Corridor"
+    elif 28.61 <= lat <= 28.67 and 77.26 <= lon <= 77.35:
+        return "Noida Link Road / Laxmi Nagar Corridor"
+    elif 28.42 <= lat <= 28.52 and 77.00 <= lon <= 77.12:
+        return "Gurgaon Cyber City / MG Road Arterial"
+    else:
+        return "Delhi Arterial Traffic Corridor"
 
 # API Configuration from Environment
 TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
@@ -40,10 +85,22 @@ class TomTomAdapter:
                         data = await resp.json()
                         raw_items = data.get("incidents", [])
                         incidents = []
+
+                        cat_configs = {
+                            1: ("CONGESTION", "Traffic Jam & Slow Movement", 450, 0.40),
+                            6: ("CONGESTION", "Heavy Congestion Bottleneck", 600, 0.50),
+                            8: ("ROAD_WORK", "Road Work & Excavation", 300, 0.25),
+                            9: ("LANE_CLOSURE", "Lane Blockade & Diversion", 750, 0.45),
+                            2: ("ROAD_WORK", "Infrastructure Maintenance Work", 360, 0.30),
+                            3: ("ROAD_WORK", "Major Expressway Repair", 420, 0.35),
+                            5: ("ACCIDENT", "Vehicle Collision & Obstruction", 900, 0.60),
+                            7: ("WEATHER_HAZARD", "Waterlogging & Visibility Hazard", 650, 0.40)
+                        }
+
                         for idx, item in enumerate(raw_items[:25]):
                             props = item.get("properties", {})
                             events = props.get("events", [{}])
-                            desc = events[0].get("description", "Traffic incident reported") if events else "Traffic disturbance reported"
+                            desc = events[0].get("description", "") if events else ""
                             
                             geometry = item.get("geometry", {})
                             coords = geometry.get("coordinates", [77.2090, 28.6139])
@@ -56,17 +113,57 @@ class TomTomAdapter:
                                 lon, lat = 77.2090, 28.6139
 
                             icon_cat = props.get("iconCategory", 0)
-                            delay = props.get("magnitudeOfDelay", 180)
+                            raw_delay = props.get("delay")
+                            magnitude = props.get("magnitudeOfDelay")
+
+                            spatial_length_m = calculate_geodesic_length(coords)
+
+                            if raw_delay is not None and isinstance(raw_delay, (int, float)) and raw_delay > 0:
+                                delay = int(raw_delay)
+                            elif magnitude is not None and isinstance(magnitude, (int, float)):
+                                mag_map = {0: 180, 1: 360, 2: 720, 3: 1200, 4: 1800}
+                                delay = mag_map.get(int(magnitude), 450)
+                            else:
+                                c_info = cat_configs.get(icon_cat, ("CONGESTION", "Traffic Congestion", 360, 0.35))
+                                delay = int(c_info[2] + (spatial_length_m * c_info[3]))
+
+                            c_info = cat_configs.get(icon_cat, ("CONGESTION", "Traffic Congestion", 360, 0.35))
                             
+                            # Precise incident type categorization by iconCategory and text keywords
+                            desc_lower = (desc or "").lower()
+                            if any(k in desc_lower for k in ["accident", "collision", "crash", "hit", "vehicle breakdown", "overturned"]):
+                                inc_type = "ACCIDENT"
+                            elif any(k in desc_lower for k in ["closure", "roadblock", "road block", "barricade", "diversion", "construction", "work", "excavation", "repair", "maintenance"]):
+                                inc_type = "ROAD_WORK"
+                            elif icon_cat in [5, 11]:
+                                inc_type = "ACCIDENT"
+                            elif icon_cat in [2, 3, 4, 8, 9]:
+                                inc_type = "ROAD_WORK"
+                            else:
+                                inc_type = c_info[0]
+
+                            if delay >= 900 or icon_cat == 5:
+                                severity = "CRITICAL"
+                            elif delay >= 540 or icon_cat in [1, 6, 9]:
+                                severity = "HIGH"
+                            elif delay >= 300 or icon_cat in [2, 3, 8]:
+                                severity = "MEDIUM"
+                            else:
+                                severity = "LOW"
+
+                            road_name = infer_delhi_road_name(float(lat), float(lon), props.get("from", ""), props.get("to", ""))
+                            title_prefix = c_info[1]
+                            title = desc if desc and desc not in ["Traffic incident reported", "Traffic disturbance reported"] else f"{title_prefix} on {road_name}"
+
                             incidents.append({
                                 "id": f"INC-TT-{idx}",
-                                "incident_type": "CONGESTION" if icon_cat in [1, 6] else "ACCIDENT",
-                                "title": desc,
-                                "description": f"TomTom verified live incident. Delay: {delay} seconds.",
+                                "incident_type": inc_type,
+                                "title": title,
+                                "description": f"TomTom live telemetry. Delay: {round(delay / 60.0, 1)} mins ({delay}s). Queue length: {round(spatial_length_m)}m.",
                                 "latitude": float(lat),
                                 "longitude": float(lon),
-                                "road_name": "Delhi Traffic Corridor",
-                                "severity": "HIGH" if delay > 600 else "MEDIUM",
+                                "road_name": road_name,
+                                "severity": severity,
                                 "delay_seconds": int(delay),
                                 "status": "ACTIVE",
                                 "source_name": "TomTom Traffic API",
@@ -88,65 +185,51 @@ class TomTomAdapter:
 
 
 class WeatherAdapter:
-    """Ingests WeatherAPI.com forecast/current data with zero-key Open-Meteo fallback."""
+    """Ingests multi-grid live telemetry from Open-Meteo & WeatherAPI across Delhi NCR sub-regions."""
     
     @staticmethod
     async def fetch_weather_cells() -> List[Dict[str, Any]]:
-        if WEATHERAPI_KEY and "placeholder" not in WEATHERAPI_KEY.lower():
-            url = f"http://api.weatherapi.com/v1/current.json?key={WEATHERAPI_KEY}&q=Delhi&aqi=no"
-            start_t = time.time()
-            try:
-                logger.info("[Weather Adapter Request] GET WeatherAPI.com current weather for Delhi")
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, timeout=5) as resp:
-                        elapsed = round((time.time() - start_t) * 1000, 2)
-                        if resp.status == 200:
-                            data = await resp.json()
-                            curr = data.get("current", {})
-                            cells = []
-                            for cell in SEED_WEATHER_CELLS:
-                                c_copy = dict(cell)
-                                c_copy["temperature_c"] = curr.get("temp_c", c_copy["temperature_c"])
-                                c_copy["humidity_pct"] = curr.get("humidity", c_copy["humidity_pct"])
-                                c_copy["precipitation_mm"] = curr.get("precip_mm", c_copy["precipitation_mm"])
-                                c_copy["wind_kph"] = curr.get("wind_kph", c_copy["wind_kph"])
-                                c_copy["visibility_km"] = curr.get("vis_km", c_copy["visibility_km"])
-                                c_copy["condition_text"] = curr.get("condition", {}).get("text", c_copy["condition_text"])
-                                c_copy["source_name"] = "WeatherAPI.com"
-                                c_copy["data_state"] = "LIVE"
-                                cells.append(c_copy)
-                            logger.info(f"[Weather Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Ingested live Delhi weather ({curr.get('temp_c')}°C, {curr.get('condition', {}).get('text')}).")
-                            return cells
-                        else:
-                            logger.warning(f"[Weather Adapter NOTICE] WeatherAPI returned HTTP {resp.status}. Trying Open-Meteo fallback.")
-            except Exception as e:
-                logger.warning(f"[Weather Adapter NOTICE] WeatherAPI fetch error ({e}). Trying Open-Meteo fallback.")
+        lats = [c["latitude"] for c in SEED_WEATHER_CELLS]
+        lons = [c["longitude"] for c in SEED_WEATHER_CELLS]
+        lat_str = ",".join(map(str, lats))
+        lon_str = ",".join(map(str, lons))
 
-        if OPEN_METEO_ENABLED:
-            url = "https://api.open-meteo.com/v1/forecast?latitude=28.6139&longitude=77.2090&current_weather=true"
-            start_t = time.time()
-            try:
-                logger.info("[Weather Adapter Fallback] GET https://api.open-meteo.com/v1/forecast")
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, timeout=5) as resp:
-                        elapsed = round((time.time() - start_t) * 1000, 2)
-                        if resp.status == 200:
-                            data = await resp.json()
-                            curr = data.get("current_weather", {})
-                            temp = curr.get("temperature", 31.0)
-                            wind = curr.get("windspeed", 15.0)
-                            cells = []
-                            for cell in SEED_WEATHER_CELLS:
-                                c_copy = dict(cell)
-                                c_copy["temperature_c"] = temp
-                                c_copy["wind_kph"] = wind
-                                c_copy["source_name"] = "Open-Meteo Fallback API"
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat_str}&longitude={lon_str}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
+        start_t = time.time()
+        
+        wmo_codes = {
+            0: "Clear Sky", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
+            45: "Hazy Fog", 48: "Rime Fog", 51: "Light Drizzle", 53: "Moderate Drizzle", 55: "Dense Drizzle",
+            61: "Slight Rain", 63: "Moderate Rain", 65: "Heavy Rain", 80: "Rain Showers", 95: "Thunderstorm"
+        }
+
+        try:
+            logger.info(f"[Weather Adapter Request] GET Open-Meteo multi-grid feed ({len(SEED_WEATHER_CELLS)} spatial cells)...")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=6) as resp:
+                    elapsed = round((time.time() - start_t) * 1000, 2)
+                    if resp.status == 200:
+                        data = await resp.json()
+                        cells = []
+                        for idx, cell in enumerate(SEED_WEATHER_CELLS):
+                            c_copy = dict(cell)
+                            if isinstance(data, list) and idx < len(data):
+                                item_curr = data[idx].get("current", {})
+                                c_copy["temperature_c"] = float(item_curr.get("temperature_2m", c_copy["temperature_c"]))
+                                c_copy["humidity_pct"] = float(item_curr.get("relative_humidity_2m", c_copy["humidity_pct"]))
+                                c_copy["precipitation_mm"] = float(item_curr.get("precipitation", c_copy["precipitation_mm"]))
+                                c_copy["wind_kph"] = float(item_curr.get("wind_speed_10m", c_copy["wind_kph"]))
+                                w_code = int(item_curr.get("weather_code", 0))
+                                c_copy["condition_text"] = wmo_codes.get(w_code, c_copy["condition_text"])
+                                c_copy["source_name"] = "Open-Meteo Multi-Grid Live API"
                                 c_copy["data_state"] = "LIVE"
-                                cells.append(c_copy)
-                            logger.info(f"[Weather Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Fetched Open-Meteo weather ({temp}°C).")
-                            return cells
-            except Exception as e:
-                logger.warning(f"[Weather Adapter NOTICE] Open-Meteo fetch failed: {e}. Using baseline weather cells.")
+                            cells.append(c_copy)
+                        logger.info(f"[Weather Adapter SUCCESS] HTTP 200 ({elapsed}ms) — Parsed {len(cells)} distinct spatial weather cell telemetries.")
+                        return cells
+                    else:
+                        logger.warning(f"[Weather Adapter NOTICE] Open-Meteo returned HTTP {resp.status}. Using baseline grid cells.")
+        except Exception as e:
+            logger.warning(f"[Weather Adapter NOTICE] Multi-grid fetch error ({e}). Using baseline grid cells.")
 
         return SEED_WEATHER_CELLS
 

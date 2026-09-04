@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, ExternalLink, Navigation, ShieldCheck, Clock, Layers, AlertTriangle } from 'lucide-react';
+import { X, ExternalLink, Navigation, ShieldCheck, Clock, Layers, AlertTriangle, CloudRain, ShieldAlert, Users, Car } from 'lucide-react';
 import { GeoJsonFeature } from '../../types/city';
 
 interface DetailPanelProps {
@@ -14,9 +14,25 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ feature, onClose, isLo
   if (!feature) return null;
 
   const { properties, geometry } = feature;
-  const coords = geometry.coordinates;
-  const lat = Array.isArray(coords[0]) ? coords[0][1] : coords[1];
-  const lon = Array.isArray(coords[0]) ? coords[0][0] : coords[0];
+
+  const extractLatLng = (geom: any): { lat: number; lon: number } => {
+    if (!geom || !geom.coordinates) return { lat: 28.6139, lon: 77.2090 };
+    let c = geom.coordinates;
+    while (Array.isArray(c) && c.length > 0 && Array.isArray(c[0])) {
+      c = c[0];
+    }
+    if (Array.isArray(c) && c.length >= 2) {
+      const lonNum = Number(c[0]);
+      const latNum = Number(c[1]);
+      return {
+        lon: isNaN(lonNum) ? 77.2090 : lonNum,
+        lat: isNaN(latNum) ? 28.6139 : latNum
+      };
+    }
+    return { lat: 28.6139, lon: 77.2090 };
+  };
+
+  const { lat, lon } = extractLatLng(geometry);
 
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
 
@@ -102,6 +118,98 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ feature, onClose, isLo
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* WEATHER DYNAMIC ADVISORY SECTION */}
+        {properties.type === 'WEATHER' && properties.extra_metadata && (
+          <div className="py-3 space-y-3 border-b border-dark-border">
+            <div className="flex items-center justify-between text-xs font-mono font-bold text-amber-400">
+              <span className="flex items-center space-x-1.5">
+                <CloudRain className="w-4 h-4 text-blue-400" />
+                <span>WEATHER ADVISORY & HAZARDS</span>
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded font-semibold text-white border" style={{ backgroundColor: properties.extra_metadata.color_hex || '#3B82F6', borderColor: '#FFFFFF33' }}>
+                {properties.extra_metadata.color_name || 'Risk Analysis'}
+              </span>
+            </div>
+
+            {/* Telemetry Metrics 2x3 Grid */}
+            <div className="grid grid-cols-3 gap-1.5 text-[11px] font-mono">
+              <div className="bg-dark-card p-2 rounded border border-dark-border text-center">
+                <span className="text-dark-muted block text-[9px] uppercase">Temp</span>
+                <span className="font-bold text-slate-100">{properties.extra_metadata.temperature_c}°C</span>
+              </div>
+              <div className="bg-dark-card p-2 rounded border border-dark-border text-center">
+                <span className="text-dark-muted block text-[9px] uppercase">Precip</span>
+                <span className="font-bold text-blue-400">{properties.extra_metadata.precipitation_mm} mm</span>
+              </div>
+              <div className="bg-dark-card p-2 rounded border border-dark-border text-center">
+                <span className="text-dark-muted block text-[9px] uppercase">Visibility</span>
+                <span className="font-bold text-amber-300">{properties.extra_metadata.visibility_km} km</span>
+              </div>
+              <div className="bg-dark-card p-2 rounded border border-dark-border text-center">
+                <span className="text-dark-muted block text-[9px] uppercase">Wind</span>
+                <span className="font-bold text-cyan-300">{properties.extra_metadata.wind_kph} km/h</span>
+              </div>
+              <div className="bg-dark-card p-2 rounded border border-dark-border text-center">
+                <span className="text-dark-muted block text-[9px] uppercase">Humidity</span>
+                <span className="font-bold text-slate-200">{properties.extra_metadata.humidity_pct}%</span>
+              </div>
+              <div className="bg-dark-card p-2 rounded border border-dark-border text-center">
+                <span className="text-dark-muted block text-[9px] uppercase">Rain Prob</span>
+                <span className="font-bold text-purple-300">{properties.extra_metadata.rain_probability_pct}%</span>
+              </div>
+            </div>
+
+            {/* Primary Hazard Reasons */}
+            {properties.extra_metadata.risk_reasons?.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono text-dark-muted uppercase block">Primary Hazard Reasons</span>
+                <div className="space-y-1">
+                  {properties.extra_metadata.risk_reasons.map((reason: string, idx: number) => (
+                    <div key={idx} className="flex items-start space-x-1.5 text-xs text-amber-200 bg-amber-950/30 p-2 rounded border border-amber-500/30">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      <span>{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Transport to Avoid */}
+            {properties.extra_metadata.avoid_transport?.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono text-dark-muted uppercase flex items-center space-x-1">
+                  <Car className="w-3 h-3 text-red-400" />
+                  <span>Transport Modes to Avoid</span>
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {properties.extra_metadata.avoid_transport.map((mode: string, idx: number) => (
+                    <span key={idx} className="text-[11px] bg-red-950/40 text-red-300 px-2 py-0.5 rounded border border-red-500/30">
+                      ⛔ {mode}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Vulnerable People Groups */}
+            {properties.extra_metadata.avoid_people_groups?.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono text-dark-muted uppercase flex items-center space-x-1">
+                  <Users className="w-3 h-3 text-purple-400" />
+                  <span>Vulnerable Groups Advisory</span>
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {properties.extra_metadata.avoid_people_groups.map((grp: string, idx: number) => (
+                    <span key={idx} className="text-[11px] bg-purple-950/40 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">
+                      ⚠️ {grp}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -2,17 +2,32 @@ from fastapi import APIRouter, Request
 from app.schemas.city_schemas import GeoJsonFeatureCollection, GeoJsonFeature, GeoJsonProperties
 from app.database.seed_data import SEED_ROAD_BLOCKS
 
+from app.services.ingestion.adapters import TomTomAdapter
+
 router = APIRouter(prefix="/api/traffic", tags=["Traffic"])
 
 @router.get("/incidents", response_model=GeoJsonFeatureCollection)
 async def get_traffic_incidents(request: Request):
-    """Returns active traffic incidents and accidents in Delhi as GeoJSON FeatureCollection."""
+    """Returns active traffic incidents in Delhi. Refreshes live data from TomTom on page load/refresh."""
     scheduler = request.app.state.scheduler
-    raw_incidents = scheduler.traffic_incidents if scheduler else []
+    if scheduler:
+        fresh_incidents = await TomTomAdapter.fetch_incidents()
+        if fresh_incidents:
+            scheduler.traffic_incidents = fresh_incidents
+        raw_incidents = scheduler.traffic_incidents
+    else:
+        raw_incidents = await TomTomAdapter.fetch_incidents()
 
     features = []
     for inc in raw_incidents:
         inc_type = inc.get("incident_type", "CONGESTION")
+        if inc_type == "ACCIDENT":
+            prop_type = "ACCIDENT"
+        elif inc_type in ["ROAD_WORK", "LANE_CLOSURE", "ROAD_BLOCK"]:
+            prop_type = "ROAD_BLOCK"
+        else:
+            prop_type = "TRAFFIC"
+
         features.append(GeoJsonFeature(
             type="Feature",
             geometry={
@@ -21,7 +36,7 @@ async def get_traffic_incidents(request: Request):
             },
             properties=GeoJsonProperties(
                 id=inc["id"],
-                type="ACCIDENT" if inc_type == "ACCIDENT" else "TRAFFIC",
+                type=prop_type,
                 title=inc["title"],
                 description=inc.get("description"),
                 severity=inc.get("severity", "HIGH"),
