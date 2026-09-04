@@ -1,6 +1,6 @@
 # 🏙️ UrbanSync — AI-Powered Smart City Digital Twin
 
-> **City Focus**: Delhi, India 🇮🇳  
+> **City Focus**: Delhi, India  
 > **Core Philosophy**: `OBSERVE` 👁️ ➔ `UNDERSTAND` 🧠 ➔ `PREDICT` 🔮 ➔ `SIMULATE` 🧪 ➔ `OPTIMIZE` ⚡ ➔ `EXPLAIN` 🗣️
 
 ---
