@@ -19,7 +19,7 @@ export const SimulationReasoningPanel: React.FC<SimulationReasoningPanelProps> =
   if (!reasoning || !route) return null;
 
   return (
-    <div className="absolute top-20 right-4 bottom-6 z-30 w-full max-w-md bg-dark-panel/95 backdrop-blur-md border border-dark-border rounded-xl p-5 shadow-panel-dark flex flex-col justify-between text-dark-text overflow-y-auto pointer-events-auto border-l-2 border-l-cyan-glow">
+    <div className="absolute top-20 right-4 bottom-6 z-50 w-full max-w-md bg-dark-panel/95 backdrop-blur-md border border-dark-border rounded-xl p-5 shadow-panel-dark flex flex-col justify-between text-dark-text overflow-y-auto pointer-events-auto border-l-2 border-l-cyan-glow">
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-dark-border">

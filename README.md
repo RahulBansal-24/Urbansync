@@ -94,7 +94,25 @@ Powered by **MapLibre GL JS**, **TomTom APIs**, **Open-Meteo**, **OpenStreetMap 
   - 🔴 **`DEGRADED`** (Red): Feature count is 0.
 - **Dynamic Relative Timestamps**: Calculates exact elapsed time passed since fetch (`"Just now"`, `"2 mins ago"`, `"15 mins ago"`).
 - **Brand Logo & Favicon**: Custom futuristic Delhi 'U' logo (`public/logo.png`, `public/favicon.png`) processed with background thresholding for transparent RGBA rendering with a cyan aura drop-shadow in the TopBar.
-- **Dynamic Tab-Scoped Map Legend**: Fully opaque (`#0F172A`) overlay stacking above map controls (`z-50`), rendering tab-scoped legend items, and automatically hidden on Smart Route, Simulation, and Hospitals tabs.
+---
+
+## 📸 Application Screenshots & Interface Glimpses
+
+### Figure 1: UrbanSync Digital Twin Overview & Real-Time Telemetry Map
+![Figure 1: Digital Twin Command Center Overview](frontend/public/screenshot_overview.png)
+* **Figure 1 Description**: The central 2.5D dark-theme MapLibre GL JS engine rendering multi-source Delhi NCR telemetry layers—including active traffic slowdowns, barricaded construction zones, public events, emergency hospitals, and 5-level weather risk spatial grids. Features top navigation command header, instant 275+ location search bar, live system health status, tab category pills, collapsible map legend, and floating UrbanSync AI assistant trigger.
+
+---
+
+### Figure 2: DMRC Metro & DTC Bus Public Transit Network & Dynamic Map Legend
+![Figure 2: Public Transit Corridor Overlay](frontend/public/screenshot_transit.png)
+* **Figure 2 Description**: Highlights Delhi NCR's multi-modal public transit network across 350+ Metro stations and DTC Bus terminals. Color-coded route LineStrings display official DMRC Metro line corridors (Yellow, Blue, Red, Pink, Magenta, Violet, Green, Airport Express) and DTC Bus Corridors. The dynamic tab-scoped map legend categorizes route line colors, while the right-side grounded detail panel displays station route numbers, exact GPS coordinates, severity level, and one-click Google Maps navigation (`NAVIGATE IN GOOGLE MAPS ↗`).
+
+---
+
+### Figure 3: What-If AI Simulation Engine & Strategic Rerouting Reasoning Panel
+![Figure 3: What-If AI Simulation Reroute Path](frontend/public/screenshot_simulation.png)
+* **Figure 3 Description**: Real-time What-If scenario simulation between Connaught Place (Rajiv Chowk) and IGI Airport Terminal 3 International under complex multi-disruption conditions (3 road closures + 1 spectator event + 30.0% traffic surge + fog weather). Displays the AI optimal reroute path highlighted in cyan (`#00F0FF`) with distinct `🟢 START` origin and `🔴 END` destination HTML map markers. The left drawer displays generic citywide metric deltas (+336.5% ETA surge, 98.5% congestion index, top impacted road corridors), while the right-side AI Rerouting Reasoning drawer presents strategic decision rationale, bypassed barricades, avoided event crowds, and safety scores.
 
 ---
 

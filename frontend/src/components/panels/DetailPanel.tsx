@@ -46,7 +46,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ feature, onClose, isLo
   };
 
   return (
-    <aside className="absolute top-20 right-4 bottom-6 z-30 w-full max-w-sm bg-dark-panel/95 backdrop-blur-md border border-dark-border rounded-xl p-5 shadow-panel-dark flex flex-col justify-between text-dark-text overflow-y-auto pointer-events-auto">
+    <aside className="absolute top-20 right-4 bottom-6 z-50 w-full max-w-sm bg-dark-panel/95 backdrop-blur-md border border-dark-border rounded-xl p-5 shadow-panel-dark flex flex-col justify-between text-dark-text overflow-y-auto pointer-events-auto">
       <div>
         {/* Header */}
         <div className="flex items-start justify-between pb-3 border-b border-dark-border">
