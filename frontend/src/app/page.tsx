@@ -179,7 +179,7 @@ export default function Home() {
       />
 
       {/* Map Legend & Interactive Controls */}
-      <MapLegend />
+      <MapLegend activeCategory={activeCategory} />
       <MapControls
         onZoomIn={() => cityMapRef.current?.zoomIn()}
         onZoomOut={() => cityMapRef.current?.zoomOut()}
@@ -187,6 +187,16 @@ export default function Home() {
         onLocateMe={() => cityMapRef.current?.locateMe()}
         onTogglePitch={() => cityMapRef.current?.togglePitch()}
       />
+
+      {/* Empty State Banner for Current-Hour Events */}
+      {activeCategory === 'EVENTS' && (!eventsData || eventsData.features.length === 0) && (
+        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-40 bg-dark-panel/95 border border-pink-500/40 rounded-xl px-4 py-2.5 shadow-2xl flex items-center space-x-2.5 backdrop-blur-md">
+          <div className="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse" />
+          <span className="text-xs font-mono text-pink-300 font-semibold tracking-wide">
+            No active public events in the current hour.
+          </span>
+        </div>
+      )}
 
       {/* FLAGSHIP #1: AI Smart Route Drawer */}
       {activeCategory === 'SMART ROUTE' && (

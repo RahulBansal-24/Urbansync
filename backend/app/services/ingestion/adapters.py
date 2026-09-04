@@ -264,6 +264,27 @@ class EventbriteAdapter:
     }
 
     @staticmethod
+    def is_current_hour_event(item: dict) -> bool:
+        start_str = item.get('startDate') or item.get('start_time')
+        end_str = item.get('endDate') or item.get('end_time')
+        if not start_str:
+            return True
+        try:
+            from datetime import datetime, timezone
+            s_clean = str(start_str).replace('Z', '+00:00')
+            start_dt = datetime.fromisoformat(s_clean)
+            now_dt = datetime.now(start_dt.tzinfo or timezone.utc)
+            if end_str:
+                e_clean = str(end_str).replace('Z', '+00:00')
+                end_dt = datetime.fromisoformat(e_clean)
+            else:
+                end_dt = start_dt
+            diff_sec = (start_dt - now_dt).total_seconds()
+            return (start_dt <= now_dt <= end_dt) or (-3600 <= diff_sec <= 3600)
+        except Exception:
+            return True
+
+    @staticmethod
     async def fetch_events() -> List[Dict[str, Any]]:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -293,6 +314,9 @@ class EventbriteAdapter:
 
                                         for item in raw_items:
                                             if not isinstance(item, dict) or item.get('@type') != 'Event':
+                                                continue
+
+                                            if not EventbriteAdapter.is_current_hour_event(item):
                                                 continue
 
                                             eb_url = item.get('url', '')
@@ -365,14 +389,16 @@ class EventbriteAdapter:
 
             elapsed = round((time.time() - start_t) * 1000, 2)
             if events:
-                logger.info(f"[Eventbrite Adapter SUCCESS] ({elapsed}ms) — Ingested {len(events)} live Eventbrite events for Delhi NCR.")
+                logger.info(f"[Eventbrite Adapter SUCCESS] ({elapsed}ms) — Ingested {len(events)} current-hour Eventbrite events for Delhi NCR.")
                 return events
             else:
-                logger.info(f"[Eventbrite Adapter NOTICE] No live Eventbrite events found. Utilizing baseline events.")
-                return SEED_EVENTS
+                active_seed_events = [ev for ev in SEED_EVENTS if EventbriteAdapter.is_current_hour_event(ev)]
+                logger.info(f"[Eventbrite Adapter NOTICE] Filtered {len(active_seed_events)} current-hour active seed events.")
+                return active_seed_events
         except Exception as e:
             logger.warning(f"[Eventbrite Adapter NOTICE] Failed to ingest Eventbrite events ({e}). Utilizing baseline events.")
-            return SEED_EVENTS
+            active_seed_events = [ev for ev in SEED_EVENTS if EventbriteAdapter.is_current_hour_event(ev)]
+            return active_seed_events
 
 
 class OverpassHospitalAdapter:
