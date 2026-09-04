@@ -10,6 +10,61 @@ interface Message {
   tools?: string[];
 }
 
+const FormattedMessage: React.FC<{ content: string }> = ({ content }) => {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+
+  return (
+    <div className="space-y-1.5 leading-relaxed">
+      {lines.map((line, lIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={lIdx} className="h-1" />;
+
+        const isBullet = trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ');
+        const cleanText = isBullet ? trimmed.replace(/^[\*\-•]\s*/, '') : trimmed;
+
+        const parseInline = (text: string) => {
+          const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+
+          return parts.map((part, pIdx) => {
+            if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+              return (
+                <strong key={pIdx} className="font-bold text-white">
+                  {part.slice(2, -2)}
+                </strong>
+              );
+            }
+            if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+              return (
+                <code key={pIdx} className="bg-slate-800 text-cyan-glow px-1 py-0.5 rounded font-mono text-[10px]">
+                  {part.slice(1, -1)}
+                </code>
+              );
+            }
+            return part;
+          });
+        };
+
+        if (isBullet) {
+          return (
+            <div key={lIdx} className="flex items-start space-x-1.5 pl-1">
+              <span className="text-cyan-glow font-bold text-[10px] shrink-0 mt-0.5">•</span>
+              <span className="text-slate-200">{parseInline(cleanText)}</span>
+            </div>
+          );
+        }
+
+        return (
+          <p key={lIdx} className="text-slate-200">
+            {parseInline(trimmed)}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
+
 export const AIAssistantWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -109,7 +164,7 @@ export const AIAssistantWidget: React.FC = () => {
                       <span>EXECUTED TOOL: {m.tools.join(', ')}</span>
                     </div>
                   )}
-                  <p>{m.content}</p>
+                  <FormattedMessage content={m.content} />
                 </div>
               </div>
             ))}

@@ -25,12 +25,12 @@ export const MapLegend: React.FC<MapLegendProps> = ({ activeCategory }) => {
       className={`absolute bottom-6 left-4 transition-all duration-200 pointer-events-auto ${
         isOpen
           ? 'z-50 bg-[#0F172A] border border-slate-700 shadow-2xl rounded-xl p-3.5 min-w-[240px] max-w-xs'
-          : 'z-30 bg-[#0F172A] border border-slate-700 rounded-xl shadow-panel-dark'
+          : 'z-30 bg-[#0F172A] border border-slate-700 rounded-xl shadow-panel-dark py-2.5 px-3.5 min-w-[150px]'
       }`}
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full space-x-2 text-xs font-mono text-slate-300 hover:text-white"
+        className="flex items-center justify-between w-full space-x-2 text-xs font-mono text-slate-300 hover:text-white py-0.5"
       >
         <div className="flex items-center space-x-1.5">
           <Info className="w-4 h-4 text-cyan-glow shrink-0" />

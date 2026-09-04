@@ -68,13 +68,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onSearchSelect, systemHealth, on
           <Shield className="w-5 h-5 text-black stroke-[2.5]" />
         </div>
         <div>
-          <div className="flex items-center space-x-2">
-            <span className="font-mono font-bold tracking-wider text-lg text-white">URBANSYNC</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-brand/20 text-cyan-glow border border-cyan-brand/40 uppercase">
-              Digital Twin v1.0
-            </span>
-          </div>
-          <p className="text-[11px] text-dark-muted hidden sm:block">AI-Powered Smart City Command Center</p>
+          <span className="font-mono font-bold tracking-wider text-lg text-white">URBANSYNC</span>
+          <p className="text-[11px] text-dark-muted hidden sm:block">AI-Powered Smart City Digital Twin</p>
         </div>
       </div>
 
