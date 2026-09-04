@@ -7,36 +7,94 @@
 
 ## 🌟 Project Overview
 
-**UrbanSync** is a cutting-edge **AI-Powered Smart City Digital Twin** for Delhi, India. It aggregates multi-source urban data streams—including real-time traffic incidents, extreme weather cells, spectator events, open transit stops, and emergency hospitals—into a dynamic 2.5D interactive dark map interface. 
+**UrbanSync** is a cutting-edge **AI-Powered Smart City Digital Twin** for Delhi, India. It aggregates multi-source urban data streams—including real-time traffic incidents, extreme weather cells, spectator events, open transit networks, and emergency hospital facilities—into a dynamic 2.5D interactive dark map interface.
 
-Powered by **MapLibre GL JS** and **TomTom APIs**, UrbanSync goes beyond passive monitoring by delivering real-time decision-support tools:
-- **Flagship #1: AI Smart Route Engine**: Computes safest and fastest routes by dynamically scoring traffic delays, weather risks, spectator crowd radii, and road blockades.
-- **Flagship #2: What-If City Simulation Engine**: Enables urban planners to simulate complex multi-variable scenarios (e.g., major road closures, monsoon downpours, traffic surges) and observe non-linear network impact.
-- **Emergency Hospital Suitability Ranker**: Ranks hospitals dynamically based on real-time traffic corridor delays, specialization fit, and ICU bed availability.
-- **AI City Assistant**: Grounded natural language assistant powered by **Groq (`llama-3.3-70b-versatile`)** capable of answering urban telemetry queries and recommending tactical actions.
+Powered by **MapLibre GL JS**, **TomTom APIs**, **Open-Meteo**, **OpenStreetMap Overpass**, and **Groq LLMs**, UrbanSync delivers real-time decision-support, predictive routing, and scenario simulation tools:
+- 🤖 **UrbanSync AI Assistant**: Grounded conversational assistant with tool calling and rich custom Markdown rendering.
+- 🎯 **AI Smart Route Engine**: Multi-criteria routing across 275+ Delhi NCR locations, evaluating traffic delays, weather risks, road barricades, and crowd radii.
+- 🧪 **What-If City Simulation Engine**: Multi-variable scenario testing (16+ road closures, 16+ event hotspots, weather/demand sliders) rendering single optimal reroutes and strategic AI reasoning.
+- 📍 **Global TopBar Search**: Search 275+ Delhi NCR locations with Google Maps style Red Drop Pin Needles, smooth camera `flyTo`, and direct Google Maps navigation links.
+- 🚅 **DMRC Metro & Bus Transit Network**: 350+ stations & DTC bus stops with official color-coded Metro line route geometries highlighted on the map canvas.
+- 🌤️ **5-Level Weather Spatial Grid**: Risk polygon overlays categorizing rain, fog, and waterlogging hazards across 6 spatial zones.
+- 🩺 **System Health Telemetry**: Real-time status modal tracking data ingestion states (`LIVE`, `STATIC / GTFS`, `FALLBACK`, `DEGRADED`) with relative timestamps.
 
 ---
 
-## ✨ Features & Highlights
+## ✨ Feature Deep-Dives
 
-### 🎯 1. Flagship AI Smart Route Engine
-- **Multi-Route Evaluation**: Evaluates primary and alternative travel corridors using TomTom's Routing API.
-- **Comprehensive Risk Scoring**: Factors in live traffic delays, active accident reports, event crowd buffer zones, and localized precipitation/fog.
-- **Explainable AI**: Provides plain-language explanations detailing why a specific route was recommended over others.
+### 🤖 1. UrbanSync AI Assistant
+- **Engine**: Powered by Groq LLM (`openai/gpt-oss-20b` or rule-based fallback).
+- **Grounded Tool Calling**: Executes actual backend data lookups to answer complex urban queries:
+  - `get_current_weather`: Queries active weather cells across Delhi sub-regions.
+  - `get_active_incidents`: Retrieves TomTom traffic bottlenecks, queue delays, and crashes.
+  - `get_major_events`: Fetches ongoing public events and crowd venue attendances.
+  - `find_best_hospital`: Ranks regional hospitals by trauma capabilities and beds.
+  - `run_simulation_summary`: Calculates hypothetical scenario impacts.
+- **Custom Markdown Formatting Parser**: Uses an inline parser converting bold tags (`**text**`), bullet points (`•` / `-`), code blocks (```code```), and line breaks into clean, formatted typography without displaying raw Markdown symbols.
 
-### 🧪 2. What-If City Simulation Engine
-- **Custom Scenario Builder**: Inject hypothetical road closures (e.g., Ring Road blockage), traffic surges (+50%), heavy rain/fog, or massive spectator events.
-- **Network Perturbation**: Simulates non-linear traffic shifts across Delhi's arterial network.
-- **Impact Metrics**: Generates before-vs-after ETA impact percentages, bottleneck shift analysis, and high-risk corridor warnings.
+### 🎯 2. AI Smart Routing & 275+ Location Index
+- **275+ Delhi NCR Locations**: Autocomplete search covering all major and medium value locations in Delhi, Gurgaon, Noida, Ghaziabad, and Faridabad + "📍 Live Location" GPS geolocation support.
+- **4 Optimization Categories**:
+  1. ⚡ **Fastest Time**: Minimizes queue delays and congestion bottlenecks.
+  2. 🛡️ **Safest Corridor**: Avoids crash zones, waterlogging, and road repairs.
+  3. 🟢 **Lowest Congestion**: Detours around heavy traffic corridors.
+  4. 🚑 **Emergency Transit**: Prioritizes hospital access corridors.
+- **Decision Engine**: Combines NetworkX graph math with multi-source telemetry scoring (TomTom delay seconds + weather risk penalty + crowd radius buffer + barricade penalty).
+- **Map Visualizations**:
+  - Highlights selected recommended route in custom **`#00F0FF` Cyan (7px width)** and alternatives in dashed lines.
+  - Places distinct **`🟢 START`** origin and **`🔴 END`** destination HTML map markers.
+  - **Auto-Cleanup**: Closing the routing panel immediately removes route lines and markers from the map canvas.
 
-### 🏥 3. Emergency Hospital Suitability Ranker
-- **Multi-Criteria Ranking**: Scores regional hospitals based on real-time transit accessibility, emergency department specialization (Trauma, Cardiac, Pediatric ICU), and live bed capacity.
-- **Instant Route Integration**: Automatically computes the fastest emergency navigation corridor directly to the recommended hospital.
+### 🧪 3. What-If AI Simulation Engine
+- **Scenario Builder**:
+  - Origin & Destination selection from 275+ Delhi locations or live GPS.
+  - Multi-select toggles for **16+ Road Closure corridors** (Ring Road, NH-48, ITO, Barapullah, etc.).
+  - Traffic Demand Surge slider (0% to +100%) and Weather Severity slider (Clear to Heavy Smog/Rain).
+  - Multi-select toggles for **16+ Major Event Hotspot Venues** (Bharat Mandapam, JLN Stadium, Connaught Place, etc.).
+- **Map & Panel Rendering**:
+  - Single returned optimal AI reroute path rendered cleanly on the map canvas with **`🟢 START`** and **`🔴 END`** markers.
+  - **Left-Panel City Impact**: Displays citywide ETA shift (+%), emissions delta, and average network speed.
+  - **Right-Side Strategic Reasoning Panel**: Presents AI decision rationale, bypassed barricades, avoided crowd zones, and safety score.
+  - **Auto-Cleanup**: Closing the simulation drawer destroys all reroute lines and markers immediately.
 
-### 📡 4. Real-Time City Data Visualization
-- **Interactive 2.5D Vector Map**: Built with MapLibre GL JS featuring pitch control, camera fly-to animations, and custom pulsating status markers.
-- **Multi-Layer Category Filtering**: Instantly filter between Events, Traffic Incidents, Road Blocks, Weather Grids, OSM Hospitals, and Public Transit.
-- **Live Delta WebSocket Updates**: Subscribes to real-time city updates via WebSockets with zero page reloading.
+### 📍 4. Global TopBar Search & Red Drop Pin Needle
+- **Search Bar**: Autocomplete search over 275+ Delhi NCR locations in the top navigation header.
+- **Red Pin Needle**: Selecting a location places a classic **Google Maps-style Red Drop Pin Needle (`📍`)** at the exact GPS coordinates.
+- **Camera Animation**: Smoothly flies the map camera (`map.flyTo`) to the target location.
+- **Right Detail Panel**: Displays venue details, coordinates, district information, and a **`NAVIGATE IN GOOGLE MAPS ↗`** button opening `https://www.google.com/maps/search/?api=1&query=lat,lng`.
+- **Auto-Cleanup**: Closing the detail panel or switching category tabs automatically removes the red pin needle.
+
+### 🚅 5. DMRC Metro & DTC Bus Public Transit Network
+- **Highlighted Route Corridors**: Renders official color-coded LineString geometries across the Delhi NCR map canvas:
+  - 🟡 **Yellow Line** (`#FFCC00`): Samaypur Badli ➔ Millennium City Centre Gurgaon
+  - 🔵 **Blue Line** (`#0066FF`): Dwarka Sector 21 ➔ Noida City Centre / Vaishali
+  - 🔴 **Red Line** (`#D32F2F`): Rithala ➔ Shaheed Sthal Ghaziabad
+  - 🩷 **Pink Line** (`#E91E63`): Majlis Park ➔ Shiv Vihar Ring Corridor
+  - 🟣 **Magenta Line** (`#9C27B0`): Janakpuri West ➔ Botanical Garden
+  - 🟣 **Violet Line** (`#673AB7`): Kashmere Gate ➔ Raja Nahar Singh Ballabhgarh
+  - 🟢 **Green Line** (`#2E7D32`): Inderlok / Kirti Nagar ➔ Brig. Hoshiar Singh
+  - 🟠 **Airport Express** (`#FF6F00`): New Delhi Railway Station ➔ Yashobhoomi Dwarka Sector 25
+  - 🩵 **DTC Bus Corridor** (`#0EA5E9`): Major DTC Bus Trunk Arterials
+- **350+ Transit Nodes**: Renders custom Metro station (`🚅`) and DTC Bus stop (`🚌`) markers.
+
+### 🌤️ 6. 5-Level Weather Spatial Grid
+- Categorizes localized meteorological telemetry into 5 color-coded spatial polygon grid overlays across 6 Delhi NCR sub-regions:
+  1. 🩵 **Cyan (`#00F0FF`, 32% opacity)**: Normal / Clear Grid Perimeter
+  2. 🟦 **Blue (`#3B82F6`)**: Light Rain / Low Hazard Drizzle
+  3. 🟧 **Amber (`#F59E0B`)**: Moderate Precipitation & Wind
+  4. 🟥 **Red (`#EF4444`)**: Heavy Rain & Waterlogging Risk Zone
+  5. 🟪 **Purple (`#A855F7`)**: Dense Smog & Visibility Hazard (<500m)
+
+### 🩺 7. System Health Status & Transparent Branding
+- **System Health Modal**: Zero-polling background overhead; reads recorded ingestion adapter states on page load.
+- **Categorized Status Badges**:
+  - 🟢 **`LIVE` / `ONLINE`** (Green): External live API call succeeded (TomTom, Open-Meteo, Eventbrite, OSM Overpass, Groq LLM).
+  - 🩵 **`STATIC / GTFS`** (Cyan): Official static GTFS metro/bus schedule database active.
+  - 🟧 **`FALLBACK`** (Amber): Verified seed dataset active due to API key omission or timeout.
+  - 🔴 **`DEGRADED`** (Red): Feature count is 0.
+- **Dynamic Relative Timestamps**: Calculates exact elapsed time passed since fetch (`"Just now"`, `"2 mins ago"`, `"15 mins ago"`).
+- **Brand Logo & Favicon**: Custom futuristic Delhi 'U' logo (`public/logo.png`, `public/favicon.png`) processed with background thresholding for transparent RGBA rendering with a cyan aura drop-shadow in the TopBar.
+- **Dynamic Tab-Scoped Map Legend**: Fully opaque (`#0F172A`) overlay stacking above map controls (`z-50`), rendering tab-scoped legend items, and automatically hidden on Smart Route, Simulation, and Hospitals tabs.
 
 ---
 
@@ -47,16 +105,14 @@ Powered by **MapLibre GL JS** and **TomTom APIs**, UrbanSync goes beyond passive
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS, PostCSS
 - **Mapping Engine**: MapLibre GL JS (`^4.1.0`)
-- **Animations**: Framer Motion
-- **Icons & UI**: Lucide React, Headless UI, Recharts
+- **Icons**: Lucide React
 
 ### ⚙️ Backend
 - **Framework**: Python 3.11+, FastAPI, Uvicorn
 - **Async Networking**: Aiohttp, Asyncio
-- **Data Science & Graph Math**: NetworkX, Pandas, NumPy, Scikit-Learn
-- **Database & Spatial ORM**: PostgreSQL, PostGIS, SQLAlchemy (Async), GeoAlchemy2
-- **Real-Time Communication**: WebSockets (FastAPI WebSocket Router)
-- **LLM Engine**: Groq API using **`llama-3.3-70b-versatile`**
+- **Data Science & Graph Math**: NetworkX, Pandas, NumPy
+- **Spatial ORM**: PostgreSQL, PostGIS, SQLAlchemy (Async), GeoAlchemy2
+- **LLM Engine**: Groq API using **`openai/gpt-oss-20b`**
 
 ---
 
@@ -64,36 +120,12 @@ Powered by **MapLibre GL JS** and **TomTom APIs**, UrbanSync goes beyond passive
 
 | API / Service | Description | Integration Use Case |
 | :--- | :--- | :--- |
-| **TomTom Traffic API** | Live Traffic Incidents & Bounding Box Details | Real-time traffic delays, accidents, and corridor congestion in Delhi |
-| **TomTom Routing API** | Route Calculation Engine | Multi-candidate route geometry, travel times, and distance calculations |
+| **TomTom Traffic API** | Live Traffic Incidents & Bounding Box Details | Real-time traffic delays, accidents, and queue lengths in Delhi NCR |
 | **OpenStreetMap / Overpass API** | Open Spatial Queries (`overpass-api.de`) | Live retrieval of verified hospital locations, addresses, and emergency facilities |
-| **Eventbrite Public Feed** | Live Regional Event Ingestion | Spectator gathering locations, attendance bounds, and crowd radius calculation |
-| **WeatherAPI.com / Open-Meteo** | Live Weather & Forecast API | Localized precipitation, visibility, and weather cell overlay |
-| **Delhi Open Transit Data** | GTFS Delhi Metro & Bus Feed | Public transit stop locations and multi-modal transit interchange markers |
-
----
-
-## 🧠 Technical Implementations
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          URBANSYNC DATA PIPELINE                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-  │
-  ├── 🛰️ INGESTION ADAPTERS (TomTom, Overpass OSM, Eventbrite, WeatherAPI)
-  │     └─► Asynchronous fetch with fallback seeds for 100% uptime
-  │
-  ├── 🧮 SPATIAL & GRAPH PROCESSING ENGINES
-  │     ├── 🛣️ Smart Route Engine: Multi-factor cost weighting on NetworkX graph
-  │     ├── 🧪 City Simulator: Network perturbation & flow redistribution algorithms
-  │     └── 🏥 Hospital Ranker: Weighted distance-decay & specialization score
-  │
-  ├── ⚡ FASTAPI API & WEBSOCKET ROUTER
-  │     └─► Exposes RESTful GeoJSON endpoints & live WebSocket delta streams
-  │
-  └── 🖥️ NEXT.JS 14 DASHBOARD & MAPLIBRE CANVAS
-        └─► Renders 2.5D map layers, custom markers, and AI drawer panels
-```
+| **Eventbrite Public Feed** | Live Regional Event Ingestion | Spectator gathering venues, current-hour filtering (`startDate <= now <= endDate`), and attendance bounds |
+| **Open-Meteo API** | Multi-Grid Weather Telemetry | Localized precipitation, humidity, smog, and 5-level spatial risk overlays |
+| **Delhi Open Transit Data** | GTFS Delhi Metro & Bus Feed | 350+ Metro stations & DTC bus stops with official color-coded line corridors |
+| **Groq LLM API** | Fast LLM Inference API | Grounded conversational AI assistant responses and scenario reasoning |
 
 ---
 
@@ -103,11 +135,11 @@ Powered by **MapLibre GL JS** and **TomTom APIs**, UrbanSync goes beyond passive
 urbansync/
 ├── backend/
 │   ├── app/
-│   │   ├── ai/                     # AI Assistant grounded chat integration (Groq Llama-3.3)
+│   │   ├── ai/                     # AI Assistant grounded chat integration (Groq LLM)
 │   │   ├── api/
 │   │   │   └── routes/             # FastAPI REST endpoints & WebSockets
-│   │   ├── database/               # PostgreSQL / PostGIS connection & seed stores
-│   │   ├── models/                 # SQLAlchemy & Pydantic schemas
+│   │   ├── database/               # Seed data stores & PostgreSQL connection
+│   │   ├── models/                 # Pydantic & SQLAlchemy schemas
 │   │   └── services/
 │   │       ├── hospital/           # Emergency hospital ranking engine
 │   │       ├── ingestion/          # Data adapters (TomTom, OSM, Eventbrite, Weather)
@@ -117,22 +149,22 @@ urbansync/
 │   ├── requirements.txt            # Python dependencies
 │   └── main.py                     # Entry point for FastAPI application
 ├── frontend/
+│   ├── public/                     # Public assets (logo.png, favicon.png)
 │   ├── src/
 │   │   ├── app/                    # Next.js 14 App Router (page.tsx, layout.tsx)
 │   │   ├── components/
 │   │   │   ├── assistant/          # Floating AI Assistant widget
 │   │   │   ├── hospitals/          # Emergency Hospital ranker drawer
-│   │   │   ├── map/                # MapLibre GL JS CityMap & Controls
+│   │   │   ├── map/                # MapLibre GL JS CityMap & Legend
 │   │   │   ├── navigation/         # Command header TopBar & CategoryBar
 │   │   │   ├── panels/             # Feature DetailPanel
 │   │   │   ├── routing/            # AI Smart Route drawer
-│   │   │   └── simulation/         # What-If City Simulation drawer
+│   │   │   └── simulation/         # What-If City Simulation drawers
 │   │   ├── services/               # Axios API client & WebSocket connector
 │   │   └── types/                  # TypeScript interface definitions
 │   ├── package.json
 │   ├── tailwind.config.js
 │   └── .env.local                  # Next.js client environment keys
-├── .env.example                    # Baseline environment template
 └── README.md
 ```
 
@@ -143,40 +175,21 @@ urbansync/
 ### 1. Prerequisites
 - **Node.js**: `v18.0.0` or higher
 - **Python**: `v3.11` or higher
-- **Package Managers**: `npm` (or `yarn` / `pnpm`) and `pip`
 
 ---
 
 ### 2. Environment Configuration
-
-You can create your local configuration by copying `.env.example` to `.env` in the root folder and replacing the placeholders with your actual API keys:
-
-```bash
-cp .env.example .env
-```
-
-#### Root `.env` (Backend Configuration)
+Create `.env` in the root folder:
 ```env
-# TOMTOM SERVICES (Map Display, Traffic, Routing - https://developer.tomtom.com/)
 TOMTOM_API_KEY=YOUR_TOMTOM_API_KEY_HERE
-
-# WEATHERAPI.COM (https://www.weatherapi.com/)
 WEATHERAPI_KEY=YOUR_WEATHERAPI_KEY_HERE
 OPEN_METEO_ENABLED=true
-
-# EVENTBRITE PUBLIC INGESTION (No API key required)
-# Ingests live public events from Eventbrite listing pages
-
-# OPENSTREETMAP OVERPASS API (No API key required)
 OVERPASS_API_URL=https://overpass-api.de/api/interpreter
-
-# GROQ LLM API (https://console.groq.com/)
 GROQ_API_KEY=YOUR_GROQ_API_KEY_HERE
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-#### Frontend `frontend/.env.local` (Client-Side Configuration)
-Create `.env.local` inside the `frontend/` directory:
+Create `frontend/.env.local`:
 ```env
 NEXT_PUBLIC_TOMTOM_API_KEY=YOUR_TOMTOM_API_KEY_HERE
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -186,53 +199,24 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 ---
 
 ### 3. Backend Setup
-
 ```powershell
-# 1. Navigate to backend folder
 cd backend
-
-# 2. Create and activate a virtual environment
 python -m venv venv
 venv\Scripts\activate      # On Windows
-# source venv/bin/activate # On Linux/macOS
-
-# 3. Install Python dependencies
 pip install -r requirements.txt
-
-# 4. Run automated backend verification tests
 python run_tests.py
-
-# 5. Start the FastAPI server
 python app/main.py
 ```
-> Server will be running at `http://localhost:8000` (Interactive API Docs at `http://localhost:8000/docs`).
 
 ---
 
 ### 4. Frontend Setup
-
-Open a new terminal window:
-
 ```powershell
-# 1. Navigate to frontend folder
 cd frontend
-
-# 2. Install Node dependencies
 npm install
-
-# 3. Start the Next.js development server
 npm run dev
 ```
 > Frontend application will be running at `http://localhost:3000`.
-
----
-
-## 🔮 Future Scope
-
-- 🚥 **Dynamic Traffic Signal Synchronization**: Integrating real-world IoT traffic signals to adjust green light durations dynamically based on simulated bottlenecks.
-- ⚡ **EV Charging Corridor Routing**: Smart route calculation tailored for Electric Vehicles (EVs), factoring in dynamic battery drain and charging station queues.
-- 🛸 **Drone & Air Mobility Airspaces**: Extending 2.5D Digital Twin camera rendering to model low-altitude UAV air corridors across metropolitan regions.
-- 🏙️ **Multi-City Expansion**: Scaling the digital twin architecture to Mumbai, Bengaluru, and international Smart Cities.
 
 ---
 

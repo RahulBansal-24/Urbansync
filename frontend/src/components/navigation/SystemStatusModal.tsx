@@ -44,7 +44,9 @@ export const SystemStatusModal: React.FC<SystemStatusModalProps> = ({ isOpen, on
                   <span className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
                     svc.status === 'LIVE' || svc.status === 'ONLINE'
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                      : svc.status.includes('FALLBACK') || svc.status.includes('STATIC')
+                      : svc.status.includes('STATIC')
+                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                      : svc.status.includes('FALLBACK')
                       ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
                       : 'bg-red-500/20 text-red-400 border border-red-500/40'
                   }`}>

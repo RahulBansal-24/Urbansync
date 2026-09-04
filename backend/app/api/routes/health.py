@@ -64,6 +64,8 @@ async def get_system_health(request: Request):
             return "DEGRADED", f"0 {name} loaded"
         if state == "LIVE":
             return "LIVE", f"{count} {name} (Live API active)"
+        if "STATIC" in state:
+            return "STATIC / GTFS", f"{count} {name} (Official GTFS schedule)"
         return "FALLBACK", f"{count} {name} (Seed dataset)"
 
     t_status, t_details = determine_status(tomtom_state, traffic_count, "TomTom incidents")

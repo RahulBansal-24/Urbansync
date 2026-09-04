@@ -545,14 +545,14 @@ from app.services.ingestion.transit_data import generate_delhi_transit_dataset
 
 class TransitAdapter:
     """Provides 300+ Metro stations, DTC Bus stops, and LineString route geometries for Delhi NCR."""
-    last_data_state = "FALLBACK"
+    last_data_state = "STATIC / GTFS"
     last_sync_time = None
 
     @staticmethod
     async def fetch_transit_stops() -> List[Dict[str, Any]]:
         TransitAdapter.last_sync_time = time.time()
         if DELHI_OTD_REALTIME_KEY and "placeholder" not in DELHI_OTD_REALTIME_KEY.lower():
-            TransitAdapter.last_status = "LIVE"
+            TransitAdapter.last_data_state = "LIVE"
         else:
-            TransitAdapter.last_status = "FALLBACK"
+            TransitAdapter.last_data_state = "STATIC / GTFS"
         return generate_delhi_transit_dataset()
