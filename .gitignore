@@ -64,3 +64,17 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Generated Project Documentation
+UrbanSync_Project_Documentation.docx
+generate_docs.py
+
+# Legacy Markdown Specs (Consolidated into README.md & docx)
+AI_SYSTEM.md
+ARCHITECTURE.md
+DATABASE.md
+ENVIRONMENT_SETUP.md
+ROUTING_ENGINE.md
+SIMULATION_ENGINE.md
+
+
